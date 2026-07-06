@@ -97,14 +97,15 @@ class SemanticCollection {
     };
     this.vectorStore = {
       dim: resolvedDim,
-      set: (col, id, vec) => { dv.set(id, vec); this._diskIvf = null; },
+      set: (col, id, vec) => { dv.set(id, vec); this._diskIvf = null; this._dropIvf(); },
       get: (col, id) => { const v = dv.get(id); return v == null ? null : { id, vector: v, metadata: {} }; },
-      remove: (col, id) => { dv.remove(id); this._diskIvf = null; },
+      remove: (col, id) => { dv.remove(id); this._diskIvf = null; this._dropIvf(); },
       search: (col, q, limit) => {
         const hits = this._diskIvf ? this._diskIvf.search(q, limit, this._diskNProbe) : dv.search(q, limit);
         return hits.map((h) => ({ id: h.id, score: h.score, metadata: {} }));
       },
     };
+    this._autoLoadIvf();
   }
 
   // Reindexado IVF (modo disco): construye un índice IVF sobre el archivo de
@@ -116,8 +117,38 @@ class SemanticCollection {
     const { IVFDiskIndex } = require("./ivf-disk.js");
     const ivf = new IVFDiskIndex(this._diskVecPath);
     ivf.build(nClusters, Math.max(nClusters * 256, 1024));
+    ivf.save(this._diskVecPath + ".ivf");
+    fs.writeFileSync(this._diskVecPath + ".ivfmeta", JSON.stringify({ nProbe }), "utf8");
     this._diskIvf = ivf;
     this._diskNProbe = nProbe;
+  }
+
+  // Auto-carga del IVF persistido al reabrir el modo disco. Si existe el archivo
+  // .ivf (y opcionalmente .ivfmeta), reconstruye el índice y lo activa. Sin
+  // archivo (sin reindex previo, o tras una mutación que lo borró) no hace nada.
+  // Cyclomatic <= 10, nesting <= 3.
+  _autoLoadIvf() {
+    const ivfPath = this._diskVecPath + ".ivf";
+    if (!fs.existsSync(ivfPath)) return;
+    const { IVFDiskIndex } = require("./ivf-disk.js");
+    const ivf = new IVFDiskIndex(this._diskVecPath);
+    ivf.load(ivfPath);
+    this._diskIvf = ivf;
+    const metaPath = this._diskVecPath + ".ivfmeta";
+    this._diskNProbe = fs.existsSync(metaPath)
+      ? JSON.parse(fs.readFileSync(metaPath, "utf8")).nProbe
+      : Number.MAX_SAFE_INTEGER;
+  }
+
+  // Invalidación en disco: borra .ivf y .ivfmeta. Llamado en set/remove del
+  // adaptador vectorial para que una reapertura no auto-cargue un índice viejo.
+  // Cyclomatic <= 10, nesting <= 3.
+  _dropIvf() {
+    if (this._diskVecPath == null) return;
+    for (const suf of [".ivf", ".ivfmeta"]) {
+      const f = this._diskVecPath + suf;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
   }
 
   // Journaling: dentro de una tx difiere al buffer; fuera anexa al WAL (sin tx, idéntico a antes).
