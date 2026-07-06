@@ -2,6 +2,7 @@
 // cluster->ids), y search() lee de disco SOLO los clusters probados (no todos los vectores).
 // Contrato: knowledge/contracts/ivf-disk.md
 
+const fs = require("node:fs");
 const { DiskVectorStore } = require("./disk-vectors.js");
 const { kmeans } = require("./kmeans.js");
 
@@ -89,6 +90,22 @@ class IVFDiskIndex {
     this._centroids = centroids;
     this._postings = centroids.map(() => []);
     assignAll(ids, this._dv, this._centroids, this._postings);
+  }
+
+  // Persistencia del índice (centroides + posting lists): STUBS — los implementa el dev.
+  // Contrato: knowledge/contracts/ivf-persist.md
+  save(indexPath) {
+    if (this._centroids == null) throw new Error("save: construir el indice (build) antes de guardar");
+    fs.writeFileSync(indexPath, JSON.stringify({ centroids: this._centroids, postings: this._postings }), "utf8");
+    return indexPath;
+  }
+
+  load(indexPath) {
+    if (!fs.existsSync(indexPath)) return false;
+    const data = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    this._centroids = data.centroids;
+    this._postings = data.postings;
+    return true;
   }
 
   search(queryVector, k, nProbe) {
