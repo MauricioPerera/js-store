@@ -228,6 +228,31 @@ r.get("d2");     // ahora sí; r.search(...) también lo encuentra
 > así también limpia un vector **huérfano** sin doc (posible tras un crash a mitad de `upsert`). El
 > espacio se recupera con `compact()`.
 
+> **Límite conocido — lectores tras `compact()` del escritor (A3):** `compact()` reemplaza el archivo
+> con un `rename` (inode nuevo). Un lector ya abierto conserva el fd al inode viejo, así que su
+> `refresh()` **no ve** las escrituras posteriores al compact (en POSIX, sin error; en Windows el
+> `compact()` con un lector abierto **falla con EPERM** y la colección sigue usable sin compactar —
+> ver v0.1.8/A8). Tras un `compact()` del escritor, **los lectores deben reabrir** la colección.
+
+> **Límite conocido — `{ path }` + `{ walPath }` juntos (A5):** son **dos modos distintos**. `{ path }`
+> es el **modo disco** (docs/vectores en disco); `openDurable({ walPath })` es el **modo memoria + WAL**.
+> Combinarlos hace doble journaling y ese WAL **nunca se replaya** a una colección en disco. Usá uno u
+> otro, no ambos.
+
+> **Límite conocido — `releaseLock` no verifica el dueño (A6):** dentro de `close()` es seguro; como
+> función suelta, borra el lockfile sin chequear el PID dueño (un proceso podría liberar el lock de
+> otro). No la uses directamente para coordinar entre procesos.
+
+> **Límite conocido — colisión de `_id` autogenerado sin lock (A7):** el `_id` por defecto es
+> `Date.now() + "_" + contador-por-instancia`. Dos escritores **sin `lock: true`** pueden colisionar en
+> el mismo milisegundo. Es consistente con el modelo 1-escritor; si escribís desde varias instancias,
+> usá `lock: true` o pasá `_id` explícitos.
+
+> **Límite conocido — recall del over-fetch con filtros selectivos (A9):** la búsqueda con filtro trae
+> `max(limit*10, 100)` candidatos por similitud y **después** filtra. Con filtros muy selectivos, los
+> matches pueden caer fuera de esa ventana y perderse. Pasá un `overFetch` mayor (o el total del
+> dataset) si necesitás recall exacto con filtros restrictivos.
+
 ## Rendimiento (benchmark)
 
 Números reales de `bench/semantic-bench.cjs` (Node 24, `DIM=64`, un solo proceso; corré

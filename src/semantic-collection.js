@@ -14,7 +14,10 @@ const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
 const DEFAULT_DIM = 768;
 
-// over-fetch suficiente para no perder recall tras filtrar.
+// Heurística de over-fetch: trae más candidatos para tolerar el filtrado posterior.
+// NO garantiza recall con filtros muy selectivos: si los matches del filtro caen fuera de
+// los `max(limit*10, 100)` candidatos más cercanos, se pierden. Pasá un `overFetch` mayor
+// (o el total) si necesitás recall exacto con filtros restrictivos.
 function resolveOverFetch(limit, overFetch) {
   if (overFetch != null) return overFetch;
   return Math.max(limit * 10, 100);

@@ -3,6 +3,17 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.9] — 2026-07-06
+
+### Docs
+- **Límites conocidos documentados (A3, A5–A7, A9 de la 3ª auditoría)**, todos en el README:
+  (A3) un lector abierto no ve escrituras posteriores a un `compact()` del escritor y debe reabrir;
+  (A5) `{ path }` (modo disco) y `{ walPath }` (memoria+WAL) son modos distintos, no se combinan;
+  (A6) `releaseLock` no verifica el PID dueño (seguro dentro de `close()`, footgun como export);
+  (A7) el `_id` autogenerado puede colisionar entre escritores sin `lock: true`;
+  (A9) el over-fetch de la búsqueda con filtro es una heurística que puede perder recall con filtros
+  muy selectivos (pasá `overFetch` mayor). Comentario de `resolveOverFetch` corregido en el código.
+
 ## [0.1.8] — 2026-07-06
 
 ### Docs
