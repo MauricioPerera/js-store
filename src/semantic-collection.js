@@ -51,7 +51,7 @@ function buildBM25(docCollection, col, textField) {
 }
 
 class SemanticCollection {
-  constructor({ vectorStore, docCollection, col, dim, walPath } = {}) {
+  constructor({ vectorStore, docCollection, col, dim, walPath, path } = {}) {
     this.col = col == null ? DEFAULT_COL : col;
     this.walPath = walPath == null ? null : walPath;
     this._tx = null;
@@ -61,12 +61,42 @@ class SemanticCollection {
       this.docCollection = docCollection;
       return;
     }
+    if (path != null) {
+      // Modo DISCO: docs+vectores en disco, no en RAM (opt-in por opts.path).
+      this._openDisk(path, dim);
+      return;
+    }
     // Modo CONVENIENCIA: arma sus propios cores en memoria.
     const { VectorStore, MemoryStorageAdapter } = require("./vendor/js-vector-store.js");
     const { DocStore, MemoryStorageAdapter: DocMemAdapter } = require("./vendor/js-doc-store.js");
     const resolvedDim = dim == null ? DEFAULT_DIM : dim;
     this.vectorStore = new VectorStore(new MemoryStorageAdapter(), resolvedDim);
     this.docCollection = new DocStore(new DocMemAdapter()).collection(this.col);
+  }
+
+  // Helper del modo DISCO: adapta DiskCollection/DiskVectorStore a la interfaz
+  // de los cores en RAM para que upsert/get/search/searchHybrid/delete/count/keys
+  // operen sin cambios. Cyclomatic <= 3, nesting <= 2.
+  _openDisk(path, dim) {
+    const { DiskCollection } = require("./disk-collection.js");
+    const { DiskVectorStore } = require("./disk-vectors.js");
+    const resolvedDim = dim == null ? DEFAULT_DIM : dim;
+    const dc = new DiskCollection(path + ".docs");
+    const dv = new DiskVectorStore(path + ".vecs");
+    this.docCollection = {
+      insert: (doc) => dc.insert(doc),
+      findById: (id) => dc.findById(id),
+      count: (f) => dc.count(f),
+      remove: (f) => dc.remove(f),
+      export: () => dc.find({}),
+    };
+    this.vectorStore = {
+      dim: resolvedDim,
+      set: (col, id, vec) => dv.set(id, vec),
+      get: (col, id) => { const v = dv.get(id); return v == null ? null : { id, vector: v, metadata: {} }; },
+      remove: (col, id) => dv.remove(id),
+      search: (col, q, limit) => dv.search(q, limit).map((h) => ({ id: h.id, score: h.score, metadata: {} })),
+    };
   }
 
   // Journaling: dentro de una tx difiere al buffer; fuera anexa al WAL (sin tx, idéntico a antes).
