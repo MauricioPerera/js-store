@@ -3,7 +3,7 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.1.1] — 2026-07-06
 
 ### Added
 - **`DiskCollection.count(filter)`** (modo disco): usa el índice secundario para igualdad simple
