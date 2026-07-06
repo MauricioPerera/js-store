@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const { hybridMerge } = require("./hybrid-merge.js");
 const { matchFilter } = require("./vendor/js-doc-store.js");
 const { BM25Index, HybridSearch } = require("./vendor/js-vector-store.js");
-const { appendOp } = require("./wal.js");
+const { appendOp, readOps } = require("./wal.js");
 
 const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
@@ -169,6 +169,34 @@ class SemanticCollection {
   static loadFromFile(path) {
     const raw = fs.readFileSync(path, "utf8");
     return SemanticCollection.deserialize(JSON.parse(raw));
+  }
+
+  // Durabilidad B2b: apertura con recuperación (snapshot + replay WAL) y checkpoint.
+  // Contrato: knowledge/contracts/semantic-collection-durable.md
+  static openDurable({ path, walPath, dim, col } = {}) {
+    // 1. Estado base: si el snapshot existe, deserializa; si no, colección nueva.
+    let sc;
+    if (path != null && fs.existsSync(path)) {
+      sc = SemanticCollection.deserialize(JSON.parse(fs.readFileSync(path, "utf8")));
+    } else {
+      sc = new SemanticCollection({ dim, col });
+    }
+    // 2. Replay del WAL SIN journalizar (sc.walPath sigue null en este punto).
+    for (const op of readOps(walPath)) {
+      if (op.op === "upsert") sc.upsert(op.id, op.doc, op.vector);
+      else if (op.op === "delete") sc.delete(op.id);
+    }
+    // 3. Activar durabilidad para las mutaciones POSTERIORES.
+    sc.snapshotPath = path == null ? null : path;
+    sc.walPath = walPath == null ? null : walPath;
+    return sc;
+  }
+
+  checkpoint() {
+    // Snapshot atómico primero, luego truncar el WAL (crash entre ambos = replay idempotente).
+    this.saveToFile(this.snapshotPath);
+    fs.writeFileSync(this.walPath, "");
+    return this.snapshotPath;
   }
 }
 
