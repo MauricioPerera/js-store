@@ -149,7 +149,16 @@ class SemanticCollection {
   // Persistencia a disco (node:fs): envoltorio síncrono sobre serialize/deserialize.
   // Contrato: knowledge/contracts/semantic-collection-file.md
   saveToFile(path) {
-    fs.writeFileSync(path, JSON.stringify(this.serialize()), "utf8");
+    const data = JSON.stringify(this.serialize());
+    const tmp = path + ".tmp";
+    const fd = fs.openSync(tmp, "w");
+    try {
+      fs.writeFileSync(fd, data, "utf8");
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmp, path);
     return path;
   }
 
