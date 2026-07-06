@@ -6,6 +6,9 @@ Todas las versiones notables de **js-store**. Formato basado en
 ## [Unreleased]
 
 ### Added
+- **`DiskCollection.count(filter)`** (modo disco): usa el índice secundario para igualdad simple
+  sobre campo indexado (devuelve `ids.length` sin escanear); cae a escaneo en el resto, idéntico
+  en semántica. Hace que `ensureIndex` beneficie al camino público expuesto por `SemanticCollection.count`.
 - **`SemanticCollection.compact()`** (modo disco): compacta los logs de docs y vectores (dropea
   tombstones y versiones superadas, achica el archivo) delegando en `DiskKV.compact()`. No-op en
   memoria. Expone en la fachada una operación que antes solo era accesible bajando a `DiskKV`

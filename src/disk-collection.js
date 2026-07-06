@@ -99,6 +99,9 @@ class DiskCollection {
   }
 
   count(filter) {
+    // Igualdad simple sobre campo indexado: cuenta los ids del índice sin escanear.
+    const ids = this._indexLookup(filter);
+    if (ids) return ids.length;
     let n = 0;
     this._scan(filter, () => { n++; });
     return n;
