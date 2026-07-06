@@ -26,8 +26,24 @@ npm test          # corre la suite JS (node --test "tests/*.test.js")
 ```
 
 ```js
+const { SemanticCollection } = require("js-store");
+
+// Colección semántica lista para usar (cores en memoria, sin configuración):
+const sc = new SemanticCollection({ dim: 768 });
+
+sc.upsert("doc1", { tipo: "post", texto: "hola mundo" }, embedding1);
+sc.upsert("doc2", { tipo: "note", texto: "otra cosa" }, embedding2);
+
+// Búsqueda semántica + filtro documental estilo Mongo:
+sc.search(queryVector, { filter: { tipo: "post" }, limit: 5 });
+// => [{ id, score, doc }, ...]
+```
+
+Acceso a los cores vendorizados (uso avanzado / inyección de dependencias):
+
+```js
 const store = require("js-store");
-store.doc.DocStore;      // core de documentos (vendorizado)
+store.doc.DocStore;       // core de documentos (vendorizado)
 store.vector.VectorStore; // core vectorial (vendorizado)
 ```
 
