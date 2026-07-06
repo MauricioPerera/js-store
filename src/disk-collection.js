@@ -9,6 +9,36 @@ class DiskCollection {
   constructor(dataPath) {
     this._kv = new DiskKV(dataPath);
     this._counter = 0;
+    this._indexes = new Map(); // field -> Map(valorString -> Set(id))
+  }
+
+  // Índice secundario sobre un campo: construye/reconstruye valor -> ids en RAM escaneando disco.
+  // Contrato: knowledge/contracts/disk-collection-index.md
+  ensureIndex(field) {
+    const m = new Map();
+    this._indexes.set(field, m);
+    for (const id of this._kv.keys()) {
+      const doc = this._kv.get(id);
+      const key = String(doc[field]);
+      if (!m.has(key)) m.set(key, new Set());
+      m.get(key).add(id);
+    }
+  }
+
+  // Agrega doc._id a cada índice existente bajo la clave String(doc[field]).
+  _addToIndexes(d) {
+    for (const [field, m] of this._indexes) {
+      const key = String(d[field]);
+      if (!m.has(key)) m.set(key, new Set());
+      m.get(key).add(d._id);
+    }
+  }
+
+  // Retira doc._id de cada índice bajo la clave String(doc[field]).
+  _removeFromIndexes(doc) {
+    for (const [field, m] of this._indexes) {
+      m.get(String(doc[field]))?.delete(doc._id);
+    }
   }
 
   insert(doc) {
@@ -17,6 +47,7 @@ class DiskCollection {
       d._id = String(Date.now()) + "_" + this._counter++;
     }
     this._kv.put(d._id, d);
+    this._addToIndexes(d);
     return d;
   }
 
@@ -35,7 +66,21 @@ class DiskCollection {
     }
   }
 
+  // Devuelve el array de ids resuelto por índice si el filtro es igualdad simple sobre
+  // un campo indexado ({ field: valorPrimitivo }); null en caso contrario (caer a escaneo).
+  _indexLookup(filter) {
+    const ks = Object.keys(filter || {});
+    if (ks.length !== 1) return null;
+    const f = ks[0];
+    if (!this._indexes.has(f)) return null;
+    if (typeof filter[f] === "object") return null;
+    const ids = this._indexes.get(f).get(String(filter[f]));
+    return ids ? [...ids] : [];
+  }
+
   find(filter) {
+    const ids = this._indexLookup(filter);
+    if (ids) return ids.map((id) => this._kv.get(id));
     const out = [];
     this._scan(filter, (_id, doc) => { out.push(doc); });
     return out;
@@ -48,14 +93,13 @@ class DiskCollection {
   }
 
   remove(filter) {
-    let removed = 0;
     const toDelete = [];
-    this._scan(filter, (id) => { toDelete.push(id); });
-    for (const id of toDelete) {
-      this._kv.delete(id);
-      removed++;
+    this._scan(filter, (_id, doc) => { toDelete.push(doc); });
+    for (const doc of toDelete) {
+      this._kv.delete(doc._id);
+      this._removeFromIndexes(doc);
     }
-    return removed;
+    return toDelete.length;
   }
 }
 
