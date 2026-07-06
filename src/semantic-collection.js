@@ -110,6 +110,15 @@ class SemanticCollection {
     }));
   }
 
+  // Lecturas directas: delegan en el core documental. Contrato: semantic-collection-reads.md
+  get(id) {
+    return this.docCollection.findById(id);
+  }
+
+  count(filter) {
+    return this.docCollection.count(filter);
+  }
+
   // Borrado: quita el registro de ambos cores. Devuelve true si el doc existía.
   // Contrato: knowledge/contracts/semantic-collection-delete.md
   delete(id) {
