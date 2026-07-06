@@ -75,6 +75,33 @@ class DiskKV {
   keys() {
     return Array.from(this._index.keys());
   }
+
+  // Compacta el log: reescribe solo los registros vivos (dropea tombstones y versiones
+  // superadas) y reemplaza el archivo atómicamente. STUB — lo implementa el dev.
+  // Contrato: knowledge/contracts/disk-kv-compact.md
+  compact() {
+    const tmp = this._path + ".compact";
+    const fd = fs.openSync(tmp, "w");
+    const newIndex = new Map();
+    let pos = 0;
+    for (const key of this._index.keys()) {          // solo claves vivas
+      const { offset, length } = this._index.get(key);
+      const payload = this._readAt(offset, length);  // lee del archivo ACTUAL (this._fd)
+      const header = Buffer.alloc(4);
+      header.writeUInt32BE(length, 0);
+      fs.writeSync(fd, header, 0, 4, pos);
+      fs.writeSync(fd, payload, 0, length, pos + 4);
+      newIndex.set(key, { offset: pos + 4, length });
+      pos += 4 + length;
+    }
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fs.closeSync(this._fd);           // cierra el fd viejo
+    fs.renameSync(tmp, this._path);   // reemplazo atomico
+    this._fd = fs.openSync(this._path, "r+");
+    this._index = newIndex;
+    this._deleted = new Set();
+  }
 }
 
 module.exports = { DiskKV };
