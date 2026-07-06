@@ -3,6 +3,18 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.5] — 2026-07-06
+
+### Fixed
+- **`DiskCollection.remove({ _id: primitivo })` borra por la clave primaria en O(1)**: antes caía a
+  `_scan` (lee y parsea todos los docs del log) porque `_id` no está en `_indexes`, haciendo la
+  carga masiva en disco O(N²) (un `_scan` O(N) por upsert, vía `SemanticCollection.upsert`). Ahora
+  un fast-path aditivo resuelve el doc con `kv.get(_id)` y lo borra con `kv.delete(_id)` sin escanear
+  y retirándolo de los índices secundarios. Cambio ADITIVO y semánticamente idéntico: mismo valor de
+  retorno y mismo estado final que el camino por escaneo en todos los casos; los filtros que no sean
+  `{ _id: primitivo }` (incluidos operadores sobre `_id`) siguen por `_indexLookup`/`_scan`. La
+  carga masiva de N docs pasa de O(N²) a O(N).
+
 ## [0.1.4] — 2026-07-06
 
 ### Security

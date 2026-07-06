@@ -62,6 +62,11 @@ remove(filter) // además de borrar, retira los ids borrados de cada índice; us
   cualquier otro caso => escaneo con `matchFilter` (comportamiento actual). Por cada doc borrado
   retira su `_id` de todos los índices. Resultado **idéntico** al escaneo (mismos docs, misma
   cantidad).
+- `remove({_id: valorPrimitivo})`: fast-path aditivo por **clave primaria**. Como `_id` es la clave
+  del `DiskKV`, `remove({ _id: X })` (una sola clave, valor string/number) resuelve el doc vía
+  `kv.get(X)` y lo borra con `kv.delete(X)` en O(1) **sin escanear**, retirándolo de los índices
+  secundarios. Si `X` no existe devuelve 0 (sin tombstone). Semántica idéntica al camino por escaneo.
+  Filtros `_id` no primitivos (p.ej. `{ _id: { $ne: ... } }`) siguen por `_indexLookup`/`_scan`.
 - Reusa `DiskKV`/`matchFilter`; solo stdlib; determinista.
 
 ## Examples

@@ -59,6 +59,11 @@ keys() -> string[]
   lee el archivo entero por consulta.
 - `delete` persiste (tombstone); tras reabrir, la clave sigue borrada.
 - `keys()` no incluye borradas ni duplicados.
+- **Reopen tolerante a tail torn**: si el log termina en un registro incompleto (crash
+  mid-append: header sin payload, o payload parcial), reabrir NO lanza; el constructor
+  reconstruye el índice con los registros COMPLETOS, descarta el tail torn y trunca el
+  archivo al último offset bueno para que quede sano (los `put` siguientes no dejan bytes
+  torn stranded en el medio). Sin torn => sin truncar, comportamiento idéntico.
 - Solo `node:fs` (namespace); IO síncrono; sin red/subprocess. Determinista.
 
 ## Examples

@@ -222,22 +222,23 @@ Números reales de `bench/semantic-bench.cjs` (Node 24, `DIM=64`, un solo proces
 
 | N docs | upsert | `reindex` (kmeans) | `search` (IVF) | `searchHybrid` (ΔRSS) |
 |---|---|---|---|---|
-| 1 000 | ~320 docs/s | 49 ms | p50 0.8 ms | +4.0 MB |
-| 10 000 | ~60 docs/s | 848 ms | p50 11 ms | +11.5 MB |
+| 1 000 | ~640 docs/s | 51 ms | p50 0.8 ms | +1.5 MB |
+| 10 000 | ~675 docs/s | 815 ms | p50 11 ms | ~0 MB |
 
 Lecturas honestas de estos números:
 - **`search` en memoria es escaneo O(N)**: lineal con el dataset (6 ms a 50k). Para datasets
   grandes usá el **modo disco + `reindex`** (IVF), que baja la búsqueda a sublineal.
-- **`searchHybrid` es el camino caro** y crece lineal (181 ms/consulta a 50k en memoria); en disco
-  su footprint de RAM sube con N (ΔRSS +11.5 MB a 10k) — es la confirmación empírica del caveat de
-  RAM: reconstruye el BM25 en memoria por consulta.
-- **La carga masiva en disco es lenta y está limitada por `fsync`** (~60 docs/s a 10k) y se degrada
-  con N. Para *bulk load* conviene cargar en memoria y `saveToFile`, o compactar; no upsertear de a
-  uno en disco. (Medido, no listado antes — candidato a optimización futura.)
+- **`searchHybrid` es el camino caro** y crece lineal (181 ms/consulta a 50k en memoria) porque
+  reconstruye el BM25 en memoria por consulta — es el caveat de RAM del modo disco. (El ΔRSS de la
+  tabla es un proxy ruidoso, sensible al GC; la materialización en RAM es arquitectónica, no se lee
+  limpio de un solo número.)
+- **La carga masiva en disco es O(N) y plana** (~650 docs/s, estable entre 1k y 10k), limitada por
+  `fsync`. Antes de v0.1.5 era O(N²) (~60 docs/s a 10k y colapsando): cada `upsert` escaneaba todo
+  el log de docs vía `remove({_id})`; el fast-path de clave primaria lo bajó a O(1) por upsert.
 - **`reindex` (kmeans) es sub-segundo hasta 10k**: no es el cuello de botella a estas escalas.
 
-No se midió disco a 50k+: a ~60 docs/s la carga es prohibitiva (>13 min) — es en sí un hallazgo
-sobre el límite práctico de la carga masiva en disco.
+Con la carga en disco ya O(N) (~650 docs/s), 50k tarda ~75 s (antes era prohibitivo). Para *bulk load*
+masivo sigue conviniendo cargar en memoria y `saveToFile`, que evita el `fsync` por registro.
 
 ## Durabilidad
 
