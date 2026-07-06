@@ -1,7 +1,7 @@
 ---
 type: 'Task Contract'
 title: 'Índice secundario sobre campos del doc (DiskCollection)'
-description: 'ensureIndex(field) mantiene en RAM un índice valor->ids; find y count usan el índice para igualdad simple sobre un campo indexado (evita escanear), y caen a escaneo para filtros complejos.'
+description: 'ensureIndex(field) mantiene en RAM un índice valor->ids; find, count y remove usan el índice para igualdad simple sobre un campo indexado (evita escanear), y caen a escaneo para filtros complejos.'
 tags: ['js-store', 'ccdd', 'disco', 'indice', 'documentos']
 
 task: disk-collection-index
@@ -38,7 +38,9 @@ find(filter)   // usa el índice si el filtro es { field: valorPrimitivo } y fie
 count(filter)  // mismo criterio que find: si es igualdad simple sobre campo indexado devuelve
                //   ids.length sin escanear; si no, escanea contando. Resultado idéntico al escaneo.
 insert(doc)    // además de guardar, actualiza cada índice: agrega doc._id al Set de String(doc[field]).
-remove(filter) // además de borrar, retira los ids borrados de cada índice.
+remove(filter) // además de borrar, retira los ids borrados de cada índice; usa el índice si el
+               //   filtro es { field: valorPrimitivo } y field está indexado (resuelve los ids a
+               //   borrar sin escanear); si no, escanea. Resultado idéntico al escaneo.
 ```
 
 ## Invariants
@@ -53,13 +55,22 @@ remove(filter) // además de borrar, retira los ids borrados de cada índice.
 - `count(filter)`: mismo criterio que `find` => devuelve `ids.length` (ids del índice) sin
   escanear; en cualquier otro caso => escaneo contando. Resultado **idéntico** al escaneo.
 - El resultado de `find`/`count` es **idéntico** con o sin índice (el índice solo cambia el CÓMO, no el QUÉ).
-- `remove` puede seguir escaneando (no es obligatorio optimizarlo); `find` y `count` usan el índice.
+- `remove(filter)`: mismo criterio que `find`/`count` => si `filter` tiene exactamente una clave
+  `f`, `this._indexes` tiene `f`, y `filter[f]` NO es objeto (igualdad simple) => resuelve los docs
+  a borrar como `this._indexes.get(f).get(String(filter[f]))` leídos de disco (`_indexLookup`
+  devuelve una copia de los ids, así que mutar el `Set` al borrar no rompe la iteración); en
+  cualquier otro caso => escaneo con `matchFilter` (comportamiento actual). Por cada doc borrado
+  retira su `_id` de todos los índices. Resultado **idéntico** al escaneo (mismos docs, misma
+  cantidad).
 - Reusa `DiskKV`/`matchFilter`; solo stdlib; determinista.
 
 ## Examples
 - insert a(post),b(note),c(post); ensureIndex("tipo"); _indexes.tipo.get("post") = {a,c}.
 - find({tipo:"post"}) -> [a,c] (vía índice). find({n:{$gt:3}}) -> escaneo.
 - count({tipo:"post"}) -> 2 (vía índice). count({n:{$gt:3}}) -> escaneo. count({tipo:"wiki"}) -> 0.
+- remove({tipo:"post"}) -> 2 (vía índice); borra a,c del KV y los retira del índice; queda
+  `_indexes.tipo.get("post")` vacío y `_indexes.tipo.get("note")` intacto. remove({n:{$gt:3}})
+  -> escaneo. remove({tipo:"wiki"}) -> 0 sin escanear.
 
 ## Do / Don't
 - DO: mantener `this._indexes` en insert/remove; en `find`, detectar la igualdad simple sobre

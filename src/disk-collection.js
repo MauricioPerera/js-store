@@ -108,8 +108,10 @@ class DiskCollection {
   }
 
   remove(filter) {
-    const toDelete = [];
-    this._scan(filter, (_id, doc) => { toDelete.push(doc); });
+    // Igualdad simple sobre campo indexado: resuelve los docs a borrar por índice sin escanear.
+    const ids = this._indexLookup(filter);
+    const toDelete = ids ? ids.map((id) => this._kv.get(id)) : [];
+    if (!ids) this._scan(filter, (_id, doc) => { toDelete.push(doc); });
     for (const doc of toDelete) {
       this._kv.delete(doc._id);
       this._removeFromIndexes(doc);

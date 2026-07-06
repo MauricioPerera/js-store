@@ -3,6 +3,13 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **`DiskCollection.remove(filter)`** (modo disco): usa el índice secundario para igualdad simple
+  sobre campo indexado (resuelve los ids a borrar por índice sin escanear); cae a escaneo en el
+  resto, idéntico en semántica y valor de retorno. Espejo del fix de `count` (commit baac444).
+
 ## [0.1.1] — 2026-07-06
 
 ### Added
