@@ -76,13 +76,18 @@ class SemanticCollection {
 
   // Helper del modo DISCO: adapta DiskCollection/DiskVectorStore a la interfaz
   // de los cores en RAM para que upsert/get/search/searchHybrid/delete/count/keys
-  // operen sin cambios. Cyclomatic <= 3, nesting <= 2.
+  // operen sin cambios. Cablea el IVF: search usa this._diskIvf si está activo
+  // (tras reindex); un set/remove lo invalida (vuelve a escaneo exacto).
+  // Cyclomatic <= 10, nesting <= 3.
   _openDisk(path, dim) {
     const { DiskCollection } = require("./disk-collection.js");
     const { DiskVectorStore } = require("./disk-vectors.js");
     const resolvedDim = dim == null ? DEFAULT_DIM : dim;
     const dc = new DiskCollection(path + ".docs");
     const dv = new DiskVectorStore(path + ".vecs");
+    this._diskVecPath = path + ".vecs";
+    this._diskIvf = null;
+    this._diskNProbe = null;
     this.docCollection = {
       insert: (doc) => dc.insert(doc),
       findById: (id) => dc.findById(id),
@@ -92,11 +97,27 @@ class SemanticCollection {
     };
     this.vectorStore = {
       dim: resolvedDim,
-      set: (col, id, vec) => dv.set(id, vec),
+      set: (col, id, vec) => { dv.set(id, vec); this._diskIvf = null; },
       get: (col, id) => { const v = dv.get(id); return v == null ? null : { id, vector: v, metadata: {} }; },
-      remove: (col, id) => dv.remove(id),
-      search: (col, q, limit) => dv.search(q, limit).map((h) => ({ id: h.id, score: h.score, metadata: {} })),
+      remove: (col, id) => { dv.remove(id); this._diskIvf = null; },
+      search: (col, q, limit) => {
+        const hits = this._diskIvf ? this._diskIvf.search(q, limit, this._diskNProbe) : dv.search(q, limit);
+        return hits.map((h) => ({ id: h.id, score: h.score, metadata: {} }));
+      },
     };
+  }
+
+  // Reindexado IVF (modo disco): construye un índice IVF sobre el archivo de
+  // vectores del modo disco y lo activa para search. Un upsert/delete posterior
+  // invalida el índice (this._diskIvf = null) y search vuelve al escaneo exacto.
+  // Solo en modo disco: en RAM/inyección this._diskVecPath queda undefined.
+  reindex(nClusters, nProbe) {
+    if (this._diskVecPath == null) throw new Error("reindex: solo en modo disco");
+    const { IVFDiskIndex } = require("./ivf-disk.js");
+    const ivf = new IVFDiskIndex(this._diskVecPath);
+    ivf.build(nClusters, Math.max(nClusters * 256, 1024));
+    this._diskIvf = ivf;
+    this._diskNProbe = nProbe;
   }
 
   // Journaling: dentro de una tx difiere al buffer; fuera anexa al WAL (sin tx, idéntico a antes).
