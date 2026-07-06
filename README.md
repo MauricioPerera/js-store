@@ -11,6 +11,11 @@ similitud) en **JavaScript puro (CommonJS), sin dependencias de runtime**.
 > doc+vector (`SemanticCollection`) se construyó tarea por tarea bajo contratos CCDD. Ver
 > [`knowledge/architecture/overview.md`](knowledge/architecture/overview.md).
 
+> 📄 **Reporte de análisis** de la jornada (cubre los tres repos de la cadena
+> js-doc-store → js-store → js-base):
+> [`ANALISIS-2026-07-06.md`](https://github.com/MauricioPerera/js-base/blob/master/docs/reports/ANALISIS-2026-07-06.md)
+> (alojado en el repo de js-base).
+
 ## Objetivo
 
 Un motor de almacenamiento que corre dentro del proceso host (como una librería), combina
