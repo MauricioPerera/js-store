@@ -1,0 +1,80 @@
+// Store clave-valor DURABLE en disco: los valores viven en disco y se leen bajo demanda
+// (no se retienen en RAM). Base para que js-store no dependa de RAM.
+// Log append-only con registros length-prefixed: [4 bytes BE: N][N bytes: JSON].
+// Contrato: knowledge/contracts/disk-kv.md
+
+const fs = require("node:fs");
+
+class DiskKV {
+  constructor(dataPath) {
+    this._path = dataPath;
+    this._index = new Map(); // key -> { offset, length } (offset del payload)
+    this._deleted = new Set();
+    if (!fs.existsSync(dataPath)) fs.writeFileSync(dataPath, "");
+    this._fd = fs.openSync(dataPath, "r+");
+    this._scan();
+  }
+
+  // Reconstruye el indice escaneando el log de principio a fin (sin retener valores).
+  _scan() {
+    const size = fs.fstatSync(this._fd).size;
+    let pos = 0;
+    while (pos < size) {
+      const N = this._readAt(pos, 4).readUInt32BE(0);
+      pos += 4;
+      const payloadOffset = pos;
+      const rec = JSON.parse(this._readAt(pos, N).toString("utf8"));
+      pos += N;
+      if (rec.deleted) {
+        this._deleted.add(rec.key);
+        this._index.delete(rec.key);
+      } else {
+        this._index.set(rec.key, { offset: payloadOffset, length: N });
+        this._deleted.delete(rec.key);
+      }
+    }
+  }
+
+  // Lee exactamente `length` bytes desde `offset` (IO posicionado, no carga el archivo).
+  _readAt(offset, length) {
+    const buf = Buffer.alloc(length);
+    fs.readSync(this._fd, buf, 0, length, offset);
+    return buf;
+  }
+
+  // Añade un registro al final del log (append); devuelve { offset, length } del payload.
+  _appendRecord(obj) {
+    const payload = Buffer.from(JSON.stringify(obj), "utf8");
+    const header = Buffer.alloc(4);
+    header.writeUInt32BE(payload.length, 0);
+    const size = fs.fstatSync(this._fd).size;
+    fs.writeSync(this._fd, header, 0, 4, size);
+    fs.writeSync(this._fd, payload, 0, payload.length, size + 4);
+    fs.fsyncSync(this._fd);
+    return { offset: size + 4, length: payload.length };
+  }
+
+  put(key, value) {
+    const meta = this._appendRecord({ key, value });
+    this._index.set(key, meta);
+    this._deleted.delete(key);
+  }
+
+  get(key) {
+    if (this._deleted.has(key) || !this._index.has(key)) return null;
+    const { offset, length } = this._index.get(key);
+    return JSON.parse(this._readAt(offset, length).toString("utf8")).value;
+  }
+
+  delete(key) {
+    this._appendRecord({ key, deleted: true });
+    this._deleted.add(key);
+    this._index.delete(key);
+  }
+
+  keys() {
+    return Array.from(this._index.keys());
+  }
+}
+
+module.exports = { DiskKV };
