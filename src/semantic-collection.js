@@ -140,6 +140,11 @@ class SemanticCollection {
     return this.docCollection.count(filter);
   }
 
+  // Lista de ids de todos los documentos. Contrato: semantic-collection-keys.md
+  keys() {
+    return this.docCollection.export().map((d) => d._id);
+  }
+
   // Borrado: quita el registro de ambos cores. Devuelve true si el doc existía.
   // Contrato: knowledge/contracts/semantic-collection-delete.md
   delete(id) {
