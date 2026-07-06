@@ -52,6 +52,7 @@ class SemanticCollection {
   constructor({ vectorStore, docCollection, col, dim, walPath } = {}) {
     this.col = col == null ? DEFAULT_COL : col;
     this.walPath = walPath == null ? null : walPath;
+    this._tx = null;
     if (vectorStore != null) {
       // Modo INYECCIÓN (existente, sin cambios).
       this.vectorStore = vectorStore;
@@ -66,11 +67,17 @@ class SemanticCollection {
     this.docCollection = new DocStore(new DocMemAdapter()).collection(this.col);
   }
 
+  // Journaling: dentro de una tx difiere al buffer; fuera anexa al WAL (sin tx, idéntico a antes).
+  _record(op) {
+    if (this._tx) this._tx.ops.push(op);
+    else if (this.walPath) appendOp(this.walPath, op);
+  }
+
   upsert(id, doc, vector) {
     this.vectorStore.set(this.col, id, vector);
     this.docCollection.remove({ _id: id });
     this.docCollection.insert({ ...doc, _id: id });
-    if (this.walPath) appendOp(this.walPath, { op: "upsert", id, doc, vector });
+    this._record({ op: "upsert", id, doc, vector });
     return id;
   }
 
@@ -132,7 +139,7 @@ class SemanticCollection {
   delete(id) {
     const removed = this.docCollection.remove({ _id: id });
     this.vectorStore.remove(this.col, id);
-    if (this.walPath) appendOp(this.walPath, { op: "delete", id });
+    this._record({ op: "delete", id });
     return removed > 0;
   }
 
@@ -197,6 +204,29 @@ class SemanticCollection {
     this.saveToFile(this.snapshotPath);
     fs.writeFileSync(this.walPath, "");
     return this.snapshotPath;
+  }
+
+  // Transacciones (Fase C): STUBS — los implementa el desarrollador (GLM).
+  // Contrato: knowledge/contracts/semantic-collection-tx.md
+  begin() {
+    if (this._tx) throw new Error("transaccion ya activa");
+    this._tx = { snapshot: this.serialize(), ops: [] };
+  }
+
+  commit() {
+    if (!this._tx) throw new Error("no hay transaccion activa");
+    if (this.walPath) {
+      for (const op of this._tx.ops) appendOp(this.walPath, op);
+    }
+    this._tx = null;
+  }
+
+  rollback() {
+    if (!this._tx) throw new Error("no hay transaccion activa");
+    const restored = SemanticCollection.deserialize(this._tx.snapshot);
+    this.vectorStore = restored.vectorStore;
+    this.docCollection = restored.docCollection;
+    this._tx = null;
   }
 }
 
