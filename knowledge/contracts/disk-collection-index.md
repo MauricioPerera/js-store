@@ -53,8 +53,13 @@ remove(filter) // además de borrar, retira los ids borrados de cada índice; us
   `this._indexes.get(f).get(String(filter[f]))` (leídos de disco). En cualquier otro caso =>
   escaneo con `matchFilter` (comportamiento actual).
 - `count(filter)`: mismo criterio que `find` => devuelve `ids.length` (ids del índice) sin
-  escanear; en cualquier otro caso => escaneo contando. Resultado **idéntico** al escaneo.
-- El resultado de `find`/`count` es **idéntico** con o sin índice (el índice solo cambia el CÓMO, no el QUÉ).
+  escanear; en cualquier otro caso => escaneo contando.
+- El resultado de `find`/`count` es idéntico con o sin índice **para valores del mismo tipo** (el
+  índice cambia el CÓMO, no el QUÉ).
+- **Colapso de tipos (excepción a la equivalencia)**: la clave del índice es `String(valor)`, así que
+  colapsa `1` y `"1"` (número vs string del mismo texto). Para valores de **tipo mixto** en un campo
+  indexado, `find`/`count`/`remove` por índice pueden devolver MÁS ids que el escaneo exacto con
+  `matchFilter` (que distingue tipos). El índice NO es equivalente al escaneo para tipos mixtos.
 - `remove(filter)`: mismo criterio que `find`/`count` => si `filter` tiene exactamente una clave
   `f`, `this._indexes` tiene `f`, y `filter[f]` NO es objeto (igualdad simple) => resuelve los docs
   a borrar como `this._indexes.get(f).get(String(filter[f]))` leídos de disco (`_indexLookup`

@@ -116,6 +116,12 @@ sc.count({ tipo: "post" });             // resuelve por índice (igualdad simple
 sc.find({ tipo: "post" });              // lo mismo: igualdad simple resuelta por índice (cae a escaneo en filtros complejos)
 ```
 
+> **Colapso de tipos en el índice:** el índice usa `String(valor)` como clave, así que colapsa `1`
+> y `"1"` (número vs string del mismo texto). Para valores de **tipo mixto** en un campo indexado,
+> `find`/`count`/`remove` **por índice** pueden devolver **más** matches que el escaneo exacto (que
+> distingue tipos). No es, entonces, byte-a-byte equivalente al escaneo para tipos mixtos; si mezclás
+> tipos en un campo indexado, tenelo en cuenta.
+
 > El índice vive en la RAM del proceso que lo creó. En un **lector** de larga vida, los docs que el
 > escritor añadió después no entran al índice del lector con `refresh()` (este solo relea la cola del
 > log, no reconstruye el índice): volvé a llamar `sc.ensureIndex(field)` tras `refresh()` si lo usás,
@@ -297,9 +303,15 @@ mutaciones se aplican en memoria (*read-your-writes*) pero su journaling se **di
 sc.begin();
 sc.upsert("d1", { text: "..." }, emb);   // visible para get/search dentro de la tx
 sc.upsert("d2", { text: "..." }, emb);
-sc.commit();     // → ambas ops al WAL de una vez (atómico)
+sc.commit();     // → vuelca las ops bufferizadas al WAL (atómico en memoria / frente a rollback)
 // sc.rollback() habría descartado ambas, sin tocar el WAL
 ```
+
+> **Alcance de "atómico" (honesto):** las transacciones son atómicas **en memoria** y **frente a
+> `rollback`** (todo-o-nada, *read-your-writes*). El WAL **no** lleva marcadores begin/commit:
+> `commit` anexa las ops **una por una**, así que un crash *a mitad del volcado* puede dejar un
+> prefijo de la transacción que `openDurable` replaya (media transacción). **No** es atómico frente
+> a un crash durante el commit. Para escritura crítica, un `checkpoint()` tras el commit acota la ventana.
 
 **D · Un solo escritor (lock)** — con un `lockPath`, `openDurable` adquiere un **lockfile**
 (con el PID) como primer paso: si otro proceso **vivo** ya lo tiene, falla rápido (evita que

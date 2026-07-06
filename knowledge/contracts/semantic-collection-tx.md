@@ -46,6 +46,10 @@ sc.rollback() // restaura los stores desde this._tx.snapshot; descarta el buffer
 - `rollback` deja el estado EXACTO previo a `begin` (upserts deshechos, deletes revertidos,
   valores restaurados), reconstruyendo los stores desde el snapshot (vía `deserialize`).
 - `commit` con `walPath` anexa las ops bufferizadas al WAL en orden; sin `walPath` solo cierra.
+- **Alcance de la atomicidad de `commit`**: es atómico **en memoria** y **frente a `rollback`**, NO
+  frente a un crash a mitad del volcado al WAL. El WAL no tiene marcadores begin/commit, así que un
+  crash entre el append de dos ops deja un prefijo de la tx que `openDurable` replaya (media
+  transacción). Un `checkpoint()` tras el commit acota la ventana.
 - Tras `rollback`, el WAL NO contiene las ops de la tx descartada; `openDurable` reconstruye
   sin ellas.
 - Errores: `begin` estando en tx lanza (no anidamiento); `commit`/`rollback` sin tx lanzan.

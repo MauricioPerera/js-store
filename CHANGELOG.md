@@ -3,6 +3,35 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.8] — 2026-07-06
+
+### Docs
+- **Acotado el alcance de "atómico" en transacciones (A2)**: `commit` es atómico en memoria y frente
+  a `rollback`, NO frente a un crash a mitad del volcado al WAL (el WAL no tiene marcadores
+  begin/commit; un crash entre dos ops deja media transacción que `openDurable` replaya). Corregido
+  en README y contrato `semantic-collection-tx.md`; un `checkpoint()` tras el commit acota la ventana.
+- **Corregida la equivalencia índice↔escaneo para tipos mixtos (A4)**: el índice secundario usa
+  `String(valor)` como clave, así que colapsa `1` y `"1"`. Para valores de tipo mixto, `find`/`count`/
+  `remove` por índice pueden devolver MÁS matches que el escaneo exacto. El claim "idéntico en
+  semántica" ahora se acota a "para valores del mismo tipo" (README + contrato `disk-collection-index.md`).
+
+### Fixed
+- **`checkpoint()` con `snapshotPath` pero sin `walPath` lanza Error de dominio (A1)**: espejo
+  exacto de H4. `openDurable({ path, dim })` sin `walPath` es config aceptada (walPath opcional;
+  `readOps(null)` tolera) y deja `this.walPath == null`; `checkpoint()` llamaba
+  `fs.writeFileSync(null, "")` y reventaba con `TypeError` crudo de fs. Ahora lanza, justo antes
+  del truncado, un Error de dominio que menciona `walPath` e indica pasar `{ walPath }` a
+  `openDurable`. No se toca el resto de `checkpoint` ni de `openDurable`.
+- **`DiskKV.compact()` robusto ante `renameSync` que falla + limpieza de `.compact` huérfano (A8)**:
+  en Windows, si un lector tenía el archivo abierto, `renameSync` lanzaba `EPERM` después de
+  cerrar el fd viejo, dejando la instancia rota (`EBADF` en toda operación posterior) y un
+  `<path>.compact` huérfano. Ahora, si el rename falla, reabre `this._fd` sobre el archivo
+  original (intacto, sin compactar), limpia el tmp huérfano y lanza un Error de dominio claro;
+  `_index`/`_deleted`/`_scanPos` no se mutan (siguen apuntando al original). Además, el
+  constructor borra un `<dataPath>.compact` huérfano de un compact que crasheó antes del rename,
+  antes de abrir el fd (seguro: un `.compact` es siempre basura parcial). El camino feliz no
+  cambia.
+
 ## [0.1.7] — 2026-07-06
 
 ### Docs
