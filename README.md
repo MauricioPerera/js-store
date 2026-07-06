@@ -31,12 +31,21 @@ const { SemanticCollection } = require("js-store");
 // Colección semántica lista para usar (cores en memoria, sin configuración):
 const sc = new SemanticCollection({ dim: 768 });
 
-sc.upsert("doc1", { tipo: "post", texto: "hola mundo" }, embedding1);
-sc.upsert("doc2", { tipo: "note", texto: "otra cosa" }, embedding2);
+sc.upsert("doc1", { tipo: "post", text: "hola mundo" }, embedding1);
+sc.upsert("doc2", { tipo: "note", text: "otra cosa" }, embedding2);
 
 // Búsqueda semántica + filtro documental estilo Mongo:
 sc.search(queryVector, { filter: { tipo: "post" }, limit: 5 });
 // => [{ id, score, doc }, ...]
+
+// Búsqueda híbrida: fusiona similitud vectorial + relevancia textual (BM25):
+sc.searchHybrid(queryVector, "hola mundo", { filter: { tipo: "post" }, limit: 5 });
+// modo "rrf" (default) o "weighted" con { vectorWeight, textWeight }
+
+// Borrado y persistencia (serialización a objeto plano JSON):
+sc.delete("doc2");
+const snapshot = JSON.stringify(sc.serialize());
+const restored = SemanticCollection.deserialize(JSON.parse(snapshot));
 ```
 
 Acceso a los cores vendorizados (uso avanzado / inyección de dependencias):
