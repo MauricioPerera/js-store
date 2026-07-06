@@ -2,6 +2,7 @@
 // Colección semántica doc+vector: envuelve un core documental y uno vectorial
 // (inyectados), expone upsert + search fusionando con hybridMerge.
 
+const fs = require("node:fs");
 const { hybridMerge } = require("./hybrid-merge.js");
 const { matchFilter } = require("./vendor/js-doc-store.js");
 const { BM25Index, HybridSearch } = require("./vendor/js-vector-store.js");
@@ -129,6 +130,18 @@ class SemanticCollection {
     const sc = new SemanticCollection({ dim: data.dim, col: data.col });
     for (const r of data.records) sc.upsert(r.id, r.doc, r.vector);
     return sc;
+  }
+
+  // Persistencia a disco (node:fs): envoltorio síncrono sobre serialize/deserialize.
+  // Contrato: knowledge/contracts/semantic-collection-file.md
+  saveToFile(path) {
+    fs.writeFileSync(path, JSON.stringify(this.serialize()), "utf8");
+    return path;
+  }
+
+  static loadFromFile(path) {
+    const raw = fs.readFileSync(path, "utf8");
+    return SemanticCollection.deserialize(JSON.parse(raw));
   }
 }
 
