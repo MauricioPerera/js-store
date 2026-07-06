@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const { hybridMerge } = require("./hybrid-merge.js");
 const { matchFilter } = require("./vendor/js-doc-store.js");
 const { BM25Index, HybridSearch } = require("./vendor/js-vector-store.js");
+const { appendOp } = require("./wal.js");
 
 const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
@@ -48,8 +49,9 @@ function buildBM25(docCollection, col, textField) {
 }
 
 class SemanticCollection {
-  constructor({ vectorStore, docCollection, col, dim } = {}) {
+  constructor({ vectorStore, docCollection, col, dim, walPath } = {}) {
     this.col = col == null ? DEFAULT_COL : col;
+    this.walPath = walPath == null ? null : walPath;
     if (vectorStore != null) {
       // Modo INYECCIÓN (existente, sin cambios).
       this.vectorStore = vectorStore;
@@ -68,6 +70,7 @@ class SemanticCollection {
     this.vectorStore.set(this.col, id, vector);
     this.docCollection.remove({ _id: id });
     this.docCollection.insert({ ...doc, _id: id });
+    if (this.walPath) appendOp(this.walPath, { op: "upsert", id, doc, vector });
     return id;
   }
 
@@ -129,6 +132,7 @@ class SemanticCollection {
   delete(id) {
     const removed = this.docCollection.remove({ _id: id });
     this.vectorStore.remove(this.col, id);
+    if (this.walPath) appendOp(this.walPath, { op: "delete", id });
     return removed > 0;
   }
 
