@@ -71,6 +71,11 @@ class SemanticCollection {
     return id;
   }
 
+  // Inserción batch: reusa upsert por item. Contrato: semantic-collection-upsertmany.md
+  upsertMany(items) {
+    return items.map((it) => this.upsert(it.id, it.doc, it.vector));
+  }
+
   search(queryVector, options = {}) {
     const filter = options.filter == null ? null : options.filter;
     const limit = options.limit == null ? DEFAULT_LIMIT : options.limit;
