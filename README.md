@@ -205,6 +205,40 @@ r.get("d2");     // ahora sí; r.search(...) también lo encuentra
 > lectores (hacen *pull* con `refresh`/reapertura). Suficiente para *un* proceso que escribe y
 > otros que consultan; no para escritura concurrente real.
 
+## Rendimiento (benchmark)
+
+Números reales de `bench/semantic-bench.cjs` (Node 24, `DIM=64`, un solo proceso; corré
+`node --expose-gc bench/semantic-bench.cjs`). Orientativos — dependen de máquina, `DIM` y datos.
+
+**Modo memoria** (búsqueda por escaneo exacto, sin IVF):
+
+| N docs | upsert | `search` (vector) | `searchHybrid` (vector+BM25) |
+|---|---|---|---|
+| 1 000 | ~59k docs/s | p50 0.08 ms | p50 2.2 ms |
+| 10 000 | ~11k docs/s | p50 0.52 ms | p50 27 ms |
+| 50 000 | ~2k docs/s | p50 5.9 ms | p50 181 ms |
+
+**Modo disco** (`{ path }`, `fsync` por escritura; `search` usa el IVF tras `reindex`):
+
+| N docs | upsert | `reindex` (kmeans) | `search` (IVF) | `searchHybrid` (ΔRSS) |
+|---|---|---|---|---|
+| 1 000 | ~320 docs/s | 49 ms | p50 0.8 ms | +4.0 MB |
+| 10 000 | ~60 docs/s | 848 ms | p50 11 ms | +11.5 MB |
+
+Lecturas honestas de estos números:
+- **`search` en memoria es escaneo O(N)**: lineal con el dataset (6 ms a 50k). Para datasets
+  grandes usá el **modo disco + `reindex`** (IVF), que baja la búsqueda a sublineal.
+- **`searchHybrid` es el camino caro** y crece lineal (181 ms/consulta a 50k en memoria); en disco
+  su footprint de RAM sube con N (ΔRSS +11.5 MB a 10k) — es la confirmación empírica del caveat de
+  RAM: reconstruye el BM25 en memoria por consulta.
+- **La carga masiva en disco es lenta y está limitada por `fsync`** (~60 docs/s a 10k) y se degrada
+  con N. Para *bulk load* conviene cargar en memoria y `saveToFile`, o compactar; no upsertear de a
+  uno en disco. (Medido, no listado antes — candidato a optimización futura.)
+- **`reindex` (kmeans) es sub-segundo hasta 10k**: no es el cuello de botella a estas escalas.
+
+No se midió disco a 50k+: a ~60 docs/s la carga es prohibitiva (>13 min) — es en sí un hallazgo
+sobre el límite práctico de la carga masiva en disco.
+
 ## Durabilidad
 
 Por defecto una `SemanticCollection` vive **en memoria**. La durabilidad es **opt-in** y se
