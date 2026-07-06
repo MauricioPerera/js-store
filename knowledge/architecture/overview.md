@@ -70,6 +70,9 @@ conviven y ven escrituras nuevas con `refresh()` (relee la cola incremental). Co
 - **No** hay multi-escritor, ni SQL/joins/relacional, ni ACID-en-disco (las transacciones son
   del modo memoria). El IVF es **aproximado** salvo `nProbe ≥ nClusters`; `reindex` entrena con
   una muestra acotada. `refresh()` no reconstruye los índices de `ensureIndex`.
+- **Excepciones al no-RAM:** `serialize()`/`saveToFile()` y `searchHybrid()` (rebuild-at-query del
+  `BM25Index`) recorren **todos** los documentos → materializan el dataset en RAM aunque estés en
+  modo disco. `search` vectorial y las lecturas por id son la parte que sí respeta el no-RAM.
 - Detalle de uso y ejemplos en el [README](../../README.md) (secciones *Modo disco*,
   *Concurrencia* y *Durabilidad*).
 

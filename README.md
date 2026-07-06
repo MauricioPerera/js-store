@@ -118,9 +118,19 @@ sc.reindex(256, 8);   // reconstruí cuando quieras (modelo build-index / REINDE
 
 > **Alcance honesto:** el modo disco rompe el **techo de RAM** para el dataset (docs+vectores en
 > disco). La concurrencia soportada es **1 escritor + N lectores** (ver abajo); **no** hay
-> multi-escritor. El índice IVF se **reconstruye** por sesión (no se persiste todavía). El
-> entrenamiento de `reindex` usa una muestra acotada; la búsqueda es la parte no-RAM (solo lee
-> los clusters probados).
+> multi-escritor. El índice IVF se **persiste y auto-carga** (`.ivf`/`.ivfmeta`); su
+> entrenamiento (`reindex`) usa una muestra acotada; la búsqueda es la parte no-RAM (solo lee los
+> clusters probados).
+>
+> **Excepciones al no-RAM (importante):** dos operaciones **sí** materializan **todos** los
+> documentos en RAM aunque estés en modo disco —
+> - `serialize()` / `saveToFile()` recorren todos los docs para armar el snapshot;
+> - `searchHybrid(...)` reconstruye un `BM25Index` completo (rebuild-at-query) escaneando **todos**
+>   los docs en **cada** llamada.
+>
+> Con un dataset que excede la RAM, evitá esas dos rutas (o usalas sabiendo el costo O(N) en
+> memoria y lecturas). `search` (vectorial) y las lecturas por id (`get`/`findById`) sí son la
+> parte no-RAM.
 
 ### Concurrencia (1 escritor + N lectores)
 

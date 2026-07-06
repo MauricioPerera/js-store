@@ -11,6 +11,12 @@ Todas las versiones notables de **js-store**. Formato basado en
   memoria. Expone en la fachada una operación que antes solo era accesible bajando a `DiskKV`
   (cierra #2).
 
+### Docs
+- Documentado el caveat de RAM del modo disco: `serialize()`/`saveToFile()` y `searchHybrid()`
+  materializan **todos** los documentos en RAM aunque el dataset viva en disco (README + nodo OKF
+  de arquitectura). Corregida de paso una nota obsoleta (el IVF **sí** se persiste/auto-carga).
+  Cierra #1.
+
 ### Fixed
 - **IVF stale en lector de larga vida**: `SemanticCollection.refresh()` ahora invalida el índice
   IVF en memoria del lector si el escritor mutó (el `.ivf` fue borrado), evitando pérdida de
