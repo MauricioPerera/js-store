@@ -40,6 +40,12 @@ class DiskVectorStore {
     return this._kv.keys();
   }
 
+  // Relee la cola del log subyacente (habilita lectores de larga vida). STUB — lo
+  // implementa el dev. Contrato: knowledge/contracts/semantic-collection-disk-refresh.md
+  refresh() {
+    this._kv.refresh();
+  }
+
   search(queryVector, k) {
     const out = [];
     for (const id of this._kv.keys()) {

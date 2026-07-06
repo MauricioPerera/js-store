@@ -141,13 +141,22 @@ const r = new SemanticCollection({ path: "./db", dim: 768 });   // ve lo que el 
 r.search(queryVector, { limit: 10 });
 ```
 
-> **Cómo un lector de larga vida ve escrituras NUEVAS:** la primitiva
-> [`DiskKV.refresh()`](src/disk-kv.js) relee **solo la cola** del log (incremental, tolerando un
-> último registro a medio escribir) y actualiza el índice sin releer todo el archivo. Hoy
-> `refresh()` vive en la capa `DiskKV`; **`SemanticCollection` aún no expone un `refresh()`
-> propio**, así que para refrescar un lector de larga vida al nivel de `SemanticCollection` hay
-> que **reabrir** (una instancia nueva escanea el log y ve lo último). Wire de `refresh()` a
-> `SemanticCollection` = trabajo pendiente si lo necesitás.
+**Lector de larga vida — `refresh()`.** Para que un lector **ya abierto** vea escrituras
+**nuevas** sin reabrir, llamá `sc.refresh()`: relee **solo la cola** de los logs (docs +
+vectores) de forma incremental —tolerando un último registro a medio escribir— y actualiza el
+índice sin releer todo el archivo. En modo memoria es **no-op**.
+
+```js
+const r = new SemanticCollection({ path: "./db", dim: 768 });
+// ...el escritor hace w.upsert("d2", ...) en otro proceso...
+r.get("d2");     // null (aún no lo vio)
+r.refresh();     // relee la cola de los logs
+r.get("d2");     // ahora sí; r.search(...) también lo encuentra
+```
+
+> `refresh()` actualiza la **vista base** (`get`/`findById`/`count`/`search`); **no** reconstruye
+> los índices secundarios creados con `ensureIndex` (esos quedan stale para registros nuevos —
+> volvé a llamar `ensureIndex` si los usás).
 
 > **Alcance honesto:** 1 escritor + N lectores, **coordinado por lockfile** (no por el SO). No
 > hay multi-escritor, ni aislamiento transaccional entre procesos, ni notificación push a los

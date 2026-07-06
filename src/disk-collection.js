@@ -55,6 +55,12 @@ class DiskCollection {
     return this._kv.get(id);
   }
 
+  // Relee la cola del log subyacente (habilita lectores de larga vida). STUB — lo
+  // implementa el dev. Contrato: knowledge/contracts/semantic-collection-disk-refresh.md
+  refresh() {
+    this._kv.refresh();
+  }
+
   // Escanea los ids en disco leyendo de a uno (sin cargar todo a RAM) y aplica `cb`
   // por cada documento que matchea el filtro. `cb` recibe (id, doc) y puede devolver
   // false para detener el escaneo. Normaliza filter vacio/undefined a "matchea todo".

@@ -95,6 +95,8 @@ class SemanticCollection {
     const resolvedDim = dim == null ? DEFAULT_DIM : dim;
     const dc = new DiskCollection(path + ".docs");
     const dv = new DiskVectorStore(path + ".vecs");
+    this._diskDoc = dc;
+    this._diskVec = dv;
     this._diskVecPath = path + ".vecs";
     this._diskIvf = null;
     this._diskNProbe = null;
@@ -336,8 +338,16 @@ class SemanticCollection {
     this._tx = null;
   }
 
-  // Lock de un solo escritor (Fase D2): libera el lock si la colección lo tomó.
-  // Contrato: knowledge/contracts/semantic-collection-lock.md
+  // Refresh de lectores en modo disco: relee la cola de los logs (docs + vectores) para
+  // que un lector de larga vida vea lo anexado por el escritor, sin reabrir. En memoria
+  // es no-op. Contrato: knowledge/contracts/semantic-collection-disk-refresh.md
+  refresh() {
+    if (this._diskVecPath == null) return;
+    this._diskDoc.refresh();
+    this._diskVec.refresh();
+  }
+
+  // Lock de un solo escritor: libera el lock si la colección lo tomó (no-op sin lock).
   close() {
     if (this._lockPath) {
       releaseLock(this._lockPath);
