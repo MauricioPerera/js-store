@@ -113,7 +113,8 @@ sc.find({ tipo: "post" });              // lo mismo: igualdad simple resuelta po
 
 > El índice vive en la RAM del proceso que lo creó. En un **lector** de larga vida, los docs que el
 > escritor añadió después no entran al índice del lector con `refresh()` (este solo relea la cola del
-> log, no reconstruye el índice): volvé a llamar `sc.ensureIndex(field)` tras `refresh()` si lo usás.
+> log, no reconstruye el índice): volvé a llamar `sc.ensureIndex(field)` tras `refresh()` si lo usás,
+> o pasá `refresh({ rebuildIndexes: true })` para que los índices existentes se reconstruyan solos.
 
 ### Búsqueda por IVF (`reindex`)
 
@@ -195,8 +196,9 @@ r.get("d2");     // ahora sí; r.search(...) también lo encuentra
 > `refresh()` actualiza la **vista base** (`get`/`findById`/`count`/`search`) e **invalida un
 > índice IVF stale**: si el escritor mutó (lo que borra el `.ivf`), el lector vuelve a **escaneo
 > exacto** y ve las escrituras nuevas (no reconstruye el IVF en el lector — eso es tarea de
-> `reindex`). **No** reconstruye los índices secundarios creados con `sc.ensureIndex` (esos quedan
-> stale para registros nuevos — volvé a llamar `sc.ensureIndex` si los usás).
+> `reindex`). Por defecto **no** reconstruye los índices secundarios creados con `sc.ensureIndex`
+> (esos quedan stale para registros nuevos — volvé a llamar `sc.ensureIndex` si los usás); con
+> `refresh({ rebuildIndexes: true })` los índices existentes se reconstruyen tras releer la cola.
 
 > **Alcance honesto:** 1 escritor + N lectores, **coordinado por lockfile** (no por el SO). No
 > hay multi-escritor, ni aislamiento transaccional entre procesos, ni notificación push a los

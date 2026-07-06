@@ -25,6 +25,14 @@ class DiskCollection {
     }
   }
 
+  // Re-corre ensureIndex para cada campo YA indexado (los que están en this._indexes),
+  // dejándolos al día con lo anexado al log por el escritor (tras un refresh). Itera sobre
+  // una copia de las keys porque ensureIndex reemplaza el Map de cada campo. No-op si no hay
+  // índices creados. Contrato: knowledge/contracts/disk-collection-index.md
+  rebuildIndexes() {
+    for (const field of [...this._indexes.keys()]) this.ensureIndex(field);
+  }
+
   // Agrega doc._id a cada índice existente bajo la clave String(doc[field]).
   _addToIndexes(d) {
     for (const [field, m] of this._indexes) {

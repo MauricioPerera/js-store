@@ -356,9 +356,12 @@ class SemanticCollection {
   // Refresh de lectores en modo disco: relee la cola de los logs (docs + vectores) para
   // que un lector de larga vida vea lo anexado por el escritor, sin reabrir. En memoria
   // es no-op. Si el escritor mutó (borró el .ivf), invalida el IVF stale del lector →
-  // vuelve a escaneo exacto (evita recall silencioso). Contratos:
+  // vuelve a escaneo exacto (evita recall silencioso). `options.rebuildIndexes === true`
+  // re-corre ensureIndex para cada campo YA indexado del DiskCollection tras refrescar los
+  // logs (los deja al día con lo anexado); default false/ausente = comportamiento actual
+  // (índices secundarios stale para registros nuevos). Contratos:
   // semantic-collection-disk-refresh.md + semantic-collection-disk-refresh-ivf.md
-  refresh() {
+  refresh(options) {
     if (this._diskVecPath == null) return;
     this._diskDoc.refresh();
     this._diskVec.refresh();
@@ -366,6 +369,7 @@ class SemanticCollection {
       this._diskIvf = null;
       this._diskNProbe = null;
     }
+    if (options && options.rebuildIndexes === true) this._diskDoc.rebuildIndexes();
   }
 
   // Compacta los logs en disco (docs + vectores): dropea tombstones y versiones superadas,

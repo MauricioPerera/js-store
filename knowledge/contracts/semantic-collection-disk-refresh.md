@@ -29,10 +29,14 @@ y vectores). En modo memoria/inyección es **no-op**. Cierra el gap señalado en
 
 ## Interface
 ```js
-sc.refresh() -> void
+sc.refresh(options?) -> void
+//   options.rebuildIndexes (boolean, default false/ausente): si es true, DESPUÉS de refrescar
+//   los logs re-corre ensureIndex para cada campo YA indexado del DiskCollection (los que están
+//   en _indexes), dejándolos al día con lo anexado. Default false/ausente = comportamiento
+//   actual byte-a-byte: los índices secundarios quedan stale para registros nuevos.
 //   Modo disco: llama al refresh() de los DiskKV subyacentes (docs + vectores) → el índice de
 //   cada uno incorpora los registros anexados por el escritor desde el último scan/refresh.
-//   Modo memoria/inyección (sin path): no-op (no lanza).
+//   Modo memoria/inyección (sin path): no-op (no lanza), con o sin options.
 ```
 Para habilitar la delegación (cambios ADITIVOS permitidos por este contrato):
 - En `_openDisk` (misma clase), guardar referencias a los dos stores: `this._diskDoc = dc;`
@@ -50,8 +54,10 @@ Para habilitar la delegación (cambios ADITIVOS permitidos por este contrato):
   `r.count()` y `r.search(...)` reflejan el nuevo registro; un `w.delete(id)` + `r.refresh()` lo
   oculta.
 - `refresh()` sin datos nuevos es idempotente. `refresh()` en modo memoria no lanza.
-- **NO** reconstruye índices secundarios (`ensureIndex`): esos quedan como estaban (fuera de
-  alcance; documentado). No cambia get/upsert/search/close ni ningún otro modo.
+- **NO** reconstruye índices secundarios (`ensureIndex`) por defecto: esos quedan como estaban
+  (fuera de alcance; documentado). Con `options.rebuildIndexes === true` SÍ los reconstruye
+  (re-corre `ensureIndex` para cada campo en `_indexes`) tras refrescar los logs. No cambia
+  get/upsert/search/close ni ningún otro modo.
 - Solo stdlib; reusa el `refresh()` de `DiskKV` (no reimplementar el escaneo de cola).
 
 ## Examples

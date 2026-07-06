@@ -6,6 +6,10 @@ Todas las versiones notables de **js-store**. Formato basado en
 ## [Unreleased]
 
 ### Added
+- **`SemanticCollection.refresh({ rebuildIndexes: true })`** (modo disco): opción opt-in que, tras
+  refrescar los logs, re-corre `ensureIndex` para cada campo ya indexado del `DiskCollection` y deja
+  los índices secundarios al día con lo anexado por el escritor. Default `false`/ausente = comportamiento
+  actual byte-a-byte (índices stale para registros nuevos). No-op en memoria.
 - **`SemanticCollection.find(filter)`**: lectura por filtro estilo Mongo (docs que matchean, sin búsqueda
   vectorial) delegando en `this.docCollection.find(filter)`. Misma shape de documento que `get(id)`. En modo
   disco cablea `find: (f) => dc.find(f)` en el adaptador de `_openDisk`, que aprovecha el índice secundario
