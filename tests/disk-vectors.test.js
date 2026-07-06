@@ -66,3 +66,12 @@ test("remove: search deja de devolver el vector; persiste", () => {
 test("search sobre store vacío => []", () => {
   assert.deepEqual(new DiskVectorStore(dataPath()).search([1, 0, 0], 5), []);
 });
+
+test("keys() lista los ids de los vectores (vigentes, sin duplicados)", () => {
+  const vs = new DiskVectorStore(dataPath());
+  vs.set("a", [1, 0, 0]);
+  vs.set("b", [0, 1, 0]);
+  vs.set("a", [1, 0, 0]);
+  vs.remove("b");
+  assert.deepEqual(vs.keys(), ["a"]);
+});

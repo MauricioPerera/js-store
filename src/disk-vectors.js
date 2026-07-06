@@ -36,6 +36,10 @@ class DiskVectorStore {
     this._kv.delete(id);
   }
 
+  keys() {
+    return this._kv.keys();
+  }
+
   search(queryVector, k) {
     const out = [];
     for (const id of this._kv.keys()) {
