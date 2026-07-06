@@ -58,6 +58,56 @@ store.doc.DocStore;       // core de documentos (vendorizado)
 store.vector.VectorStore; // core vectorial (vendorizado)
 ```
 
+## Durabilidad
+
+Por defecto una `SemanticCollection` vive **en memoria**. La durabilidad es **opt-in** y se
+construyó en tres capas:
+
+**A · Snapshot atómico** — `saveToFile` escribe a un temporal, hace `fsync` y renombra de
+forma atómica: un crash a mitad de escritura **no corrompe** el archivo previo.
+
+```js
+sc.saveToFile("col.json");                       // durable y atómico
+const sc = SemanticCollection.loadFromFile("col.json");
+```
+
+**B · WAL (Write-Ahead Log) + recuperación** — con `openDurable`, cada `upsert`/`delete` se
+anexa a un journal append-only (con `fsync`). Tras un crash, `openDurable` reconstruye el
+estado combinando el snapshot base con el *replay* del WAL. `checkpoint` consolida el estado
+en un snapshot atómico y trunca el WAL.
+
+```js
+const sc = SemanticCollection.openDurable({
+  path: "col.json",     // snapshot base (opcional)
+  walPath: "col.wal",   // journal
+  dim: 768,
+});
+sc.upsert("d1", { text: "..." }, emb);   // aplicado en memoria + anexado al WAL (durable)
+// ...si el proceso muere aquí...
+const recovered = SemanticCollection.openDurable({ path: "col.json", walPath: "col.wal", dim: 768 });
+// ↑ estado reconstruido: snapshot + replay del WAL
+
+sc.checkpoint();   // snapshot atómico + WAL truncado
+```
+
+**C · Transacciones** — `begin`/`commit`/`rollback` atómicos. Dentro de la transacción las
+mutaciones se aplican en memoria (*read-your-writes*) pero su journaling se **difiere**:
+`commit` las vuelca al WAL; `rollback` restaura el estado previo y deja el WAL intacto.
+
+```js
+sc.begin();
+sc.upsert("d1", { text: "..." }, emb);   // visible para get/search dentro de la tx
+sc.upsert("d2", { text: "..." }, emb);
+sc.commit();     // → ambas ops al WAL de una vez (atómico)
+// sc.rollback() habría descartado ambas, sin tocar el WAL
+```
+
+> **Alcance honesto:** la colección es **in-memory** (acotada por RAM) y de **un solo
+> proceso** (sin locking multi-proceso); las transacciones son de estado completo (el
+> `begin` copia el estado, coste O(N), no MVCC). Para durabilidad relacional a gran escala,
+> usa SQLite u otra base como fuente de verdad; js-store brilla como índice semántico
+> embebido y portable.
+
 ## Metodología: KDD (Knowledge-Driven Development)
 
 Este proyecto se desarrolla con **KDD**, que unifica:
