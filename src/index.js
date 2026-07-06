@@ -11,9 +11,12 @@
 
 const docStore = require("./vendor/js-doc-store.js");
 const vectorStore = require("./vendor/js-vector-store.js");
+const { SemanticCollection } = require("./semantic-collection.js");
 
 module.exports = {
   VERSION: "0.0.0",
+  // API de integración de js-store:
+  SemanticCollection,
   // Cores vendorizados, expuestos tal cual bajo namespace:
   doc: docStore,
   vector: vectorStore,

@@ -17,3 +17,7 @@ test("reexpone el core de documentos (DocStore)", () => {
 test("reexpone el core vectorial (VectorStore)", () => {
   assert.equal(typeof store.vector.VectorStore, "function");
 });
+
+test("expone la API de integración (SemanticCollection)", () => {
+  assert.equal(typeof store.SemanticCollection, "function");
+});
