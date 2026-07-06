@@ -15,6 +15,13 @@ function resolveOverFetch(limit, overFetch) {
   return Math.max(limit * 10, 100);
 }
 
+// Record de persistencia: une un doc (con _id) con su vector plano.
+function recordFromDoc(sc, doc) {
+  const id = doc._id;
+  const vector = sc.vectorStore.get(sc.col, id).vector;
+  return { id, doc, vector };
+}
+
 // Set de ids candidatos cuyo doc existe y matchea el filter. null = sin filtro.
 function buildAllowedIds(docCollection, candidates, filter) {
   if (filter == null) return null;
@@ -65,6 +72,20 @@ class SemanticCollection {
       score: h.score,
       doc: this.docCollection.findById(h.id),
     }));
+  }
+
+  // Persistencia: Contrato knowledge/contracts/semantic-collection-persist.md
+  // Volcado a objeto plano JSON (sin binario) y reconstrucción vía upsert.
+  serialize() {
+    const docs = this.docCollection.export();
+    const records = docs.map((doc) => recordFromDoc(this, doc));
+    return { col: this.col, dim: this.vectorStore.dim, records };
+  }
+
+  static deserialize(data) {
+    const sc = new SemanticCollection({ dim: data.dim, col: data.col });
+    for (const r of data.records) sc.upsert(r.id, r.doc, r.vector);
+    return sc;
   }
 }
 
