@@ -47,6 +47,10 @@ sc.checkpoint() -> path
   añade ops al WAL (journaling desactivado hasta después del replay). Reabrir no duplica el WAL.
 - **checkpoint**: snapshot primero (atómico, vía `saveToFile`), luego truncar el WAL. Tras
   checkpoint `readOps(walPath)` es `[]` y el estado persiste en el snapshot.
+- **checkpoint sin snapshotPath**: `openDurable({ walPath })` sin `path` es una config aceptada
+  (path es opcional) y deja `this.snapshotPath == null`. En ese caso `checkpoint()` lanza un
+  Error de DOMINIO que menciona `snapshotPath`/`path` (no un TypeError de `fs`); el consumidor
+  debe pasar `{ path }` a `openDurable` para habilitar checkpoint.
 - **Crash-safety del checkpoint**: si se escribe el snapshot pero NO se trunca el WAL (crash
   a medias), reabrir aplica el snapshot y reproduce el WAL de forma **idempotente** (upsert por
   id, delete idempotente) => estado correcto, sin duplicar.

@@ -45,6 +45,8 @@ sc.searchHybrid(queryVector, queryText, options = {}) -> Array<{ id, score, doc 
 - Aplica el filtro documental por `_id` sobre los candidatos (mismo criterio que `search`),
   fusiona con `hybridMerge` y trunca a `limit` DESPUÉS de filtrar.
 - Cada resultado es `{ id, score, doc }` con el doc adjunto por `_id`.
+- Saneo post-crash: un vector huerfano (sin doc) se EXCLUYE del resultado (`doc == null`
+  no se devuelve), igual que `search`. En operacion normal es identico.
 - Modo `weighted` con `vectorWeight: 0` => domina BM25; con `textWeight: 0` => domina el vector.
 - Zero-dependencias (solo cores vendorizados + stdlib); sin IO propio; no muta `options`.
 

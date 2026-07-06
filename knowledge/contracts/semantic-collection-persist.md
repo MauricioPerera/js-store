@@ -44,6 +44,10 @@ SemanticCollection.deserialize(data) -> SemanticCollection
   `data` (sin binario). Debe poder pasar por `JSON.stringify`/`parse` y deserializarse.
 - Fuentes de verdad para serializar: `docCollection.export()` (docs con `_id`) y
   `vectorStore.get(col, id).vector` (el vector por id). `dim` se lee de `vectorStore.dim`.
+- Saneo post-crash: si un doc no tiene vector asociado (`vectorStore.get` devuelve null,
+  estado inconsistente por crash a mitad de upsert/compact o manipulación externa),
+  `serialize()` lanza un Error de DOMINIO cuyo mensaje nombra el `id` huerfano (no un
+  TypeError crudo). Indica al consumidor correr `compact()` o reinsertar.
 - La colección restaurada es **independiente** del original (mutarla no afecta al otro).
 - Colección vacía: round-trip válido, `search` devuelve `[]`.
 - Reconstrucción vía `upsert` (reusa la lógica ya probada); no reimplementar el join.

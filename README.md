@@ -210,6 +210,18 @@ r.get("d2");     // ahora sí; r.search(...) también lo encuentra
 > lectores (hacen *pull* con `refresh`/reapertura). Suficiente para *un* proceso que escribe y
 > otros que consultan; no para escritura concurrente real.
 
+> **Límite conocido — robo de lock stale no atómico:** el modelo "1 escritor" asume que el robo de
+> un lock huérfano (de un proceso muerto) no es concurrente. Si dos procesos arrancan a la vez tras
+> un crash y detectan el mismo lock stale, ambos pueden robarlo (ventana chica: `unlinkSync` +
+> `openSync("wx")` intercalados) y creerse escritores. Sumado al caveat clásico de **reuso de PID**
+> (un PID reciclado puede parecer "vivo"). Coordiná el arranque de los escritores; no dependas del
+> lock como única garantía de exclusión post-crash.
+
+> **Límite conocido — `delete()` de un id inexistente** apendea igual un tombstone al log de
+> vectores (unos bytes por llamada). Es **intencional**: `delete` quita el vector incondicionalmente,
+> así también limpia un vector **huérfano** sin doc (posible tras un crash a mitad de `upsert`). El
+> espacio se recupera con `compact()`.
+
 ## Rendimiento (benchmark)
 
 Números reales de `bench/semantic-bench.cjs` (Node 24, `DIM=64`, un solo proceso; corré

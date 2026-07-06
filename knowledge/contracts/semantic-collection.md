@@ -54,6 +54,10 @@ search(queryVector, options = {}) -> Array<{ id, score, doc }>
 - El ranking preserva el orden por similitud del vector store (vía `hybridMerge`); el
   truncado a `limit` es DESPUÉS de filtrar.
 - Cada resultado es `{ id, score, doc }` con el documento adjunto (por `_id`).
+- Saneo post-crash: un vector huerfano (sin doc, alcanzable por un crash entre el `set`
+  del vector y el `insert` del doc en `upsert`) se EXCLUYE del resultado (`doc == null`
+  no se devuelve). En operacion normal (todo vector tiene su doc) es identico; post-crash
+  el huerfano simplemente no aparece. Aplica a `search` y `searchHybrid`.
 - `upsert` es idempotente por `id`: reinsertar el mismo `id` actualiza doc y vector, no duplica.
 - Zero-dependencias; sin IO propio (usa solo los cores inyectados y stdlib); no muta `options`.
 - La unión doc↔vector es por identidad: el `id` del vector == el `_id` del documento.

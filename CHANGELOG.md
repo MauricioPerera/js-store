@@ -3,6 +3,34 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.7] — 2026-07-06
+
+### Docs
+- **Límites conocidos documentados en el README (H5, H6 de la auditoría)**: (H6) el robo de un
+  lock stale no es atómico — dos escritores que arrancan a la vez tras un crash pueden robar el
+  mismo lock huérfano y creerse ambos escritores (más el caveat de reuso de PID); (H5) `delete()`
+  de un id inexistente apendea igual un tombstone al log de vectores (intencional: así limpia
+  vectores huérfanos sin doc; se recupera con `compact()`).
+
+### Fixed
+- **`SemanticCollection.serialize()` lanza Error de dominio ante un doc sin vector (H2)**:
+  `recordFromDoc` hacía `vectorStore.get(col, id).vector` y, si `get` devolvía `null` (doc
+  presente pero vector ausente, alcanzable por un crash a mitad de `compact` o manipulación
+  externa), reventaba con `TypeError` crudo ("Cannot read properties of null"). Ahora chequea
+  `null` y lanza un Error de dominio que nombra el `id` huerfano e indica correr `compact()`
+  o reinsertar. El camino feliz no cambia.
+- **`search`/`searchHybrid` excluyen hits huerfanos (vector-sin-doc) (H3)**: un crash entre el
+  `set` del vector y el `insert` del doc en `upsert` dejaba un vector sin doc; sin filtro,
+  `search`/`searchHybrid` armaban resultados con `doc: null` y un consumidor que hiciera
+  `hit.doc.campo` reventaba. Ahora ambos métodos filtran `r.doc != null` tras armar los hits.
+  Semánticamente idéntico en operación normal (todo vector tiene su doc); post-crash el
+  huerfano simplemente no aparece. No se toca el resto de la lógica de `search`/`hybrid`.
+- **`checkpoint()` sin `snapshotPath` lanza Error de dominio (H4)**: `openDurable({ walPath })`
+  sin `path` es una config aceptada (path es opcional) y deja `this.snapshotPath == null`;
+  `checkpoint()` llamaba `saveToFile(null)` y `renameSync` reventaba con un `TypeError` de `fs`.
+  Ahora lanza al inicio un Error de dominio que menciona `snapshotPath`/`path` e indica pasar
+  `{ path }` a `openDurable`. No se toca el resto de `checkpoint` ni `openDurable`.
+
 ## [0.1.6] — 2026-07-06
 
 ### Fixed
