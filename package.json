@@ -1,21 +1,21 @@
 {
   "name": "js-store",
   "version": "0.0.0",
-  "description": "Base de datos embebida de documentos y vectores, sin dependencias.",
-  "type": "module",
+  "description": "Base de datos embebida de documentos y vectores, sin dependencias. Capa de integración sobre js-doc-store y js-vector-store.",
+  "main": "src/index.js",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=16.0.0"
   },
-  "main": "src/index.js",
   "scripts": {
-    "test": "node --test",
-    "test:watch": "node --test --watch"
+    "test": "node --test \"tests/*.test.js\"",
+    "test:watch": "node --test --watch \"tests/*.test.js\""
   },
   "keywords": [
     "document-store",
     "vector-store",
     "embedded",
-    "zero-dependencies"
+    "zero-dependencies",
+    "rag"
   ]
 }

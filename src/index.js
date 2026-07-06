@@ -1,8 +1,20 @@
-// js-store — punto de entrada público.
-// Base de datos embebida de documentos + vectores, sin dependencias.
+// js-store — fachada pública (CommonJS, zero-dependencias).
 //
-// Aún no hay implementación: la API se irá construyendo tarea por tarea vía
-// contratos CCDD en knowledge/contracts/. Este módulo solo expone la versión
-// para que el scaffold (node --test) tenga un target real desde el día 0.
+// Capa de INTEGRACIÓN sobre dos cores propios vendorizados (ver src/vendor/):
+//   - js-doc-store    → base de documentos (queries tipo Mongo, índices, agregación…)
+//   - js-vector-store → almacén vectorial (cuantización, IVF, BM25, HybridSearch…)
+//
+// Por ahora esta fachada solo REEXPONE ambos cores bajo namespaces estables. La API
+// unificada doc+vector (p. ej. una colección con búsqueda semántica nativa) se construye
+// tarea por tarea vía contratos CCDD en knowledge/contracts/. Arquitectura:
+// knowledge/architecture/overview.md.
 
-export const VERSION = "0.0.0";
+const docStore = require("./vendor/js-doc-store.js");
+const vectorStore = require("./vendor/js-vector-store.js");
+
+module.exports = {
+  VERSION: "0.0.0",
+  // Cores vendorizados, expuestos tal cual bajo namespace:
+  doc: docStore,
+  vector: vectorStore,
+};

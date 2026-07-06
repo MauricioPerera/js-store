@@ -1,11 +1,19 @@
-// Smoke test del scaffold. Confirma que `node --test` está cableado y que el
-// módulo público carga. Los tests reales de cada función se congelan en su
-// contrato CCDD antes de delegar la implementación.
+// Smoke test del scaffold de integración (CommonJS). Confirma que la fachada carga y
+// reexpone los dos cores vendorizados. Los tests reales de cada función integradora se
+// congelan en su contrato CCDD antes de delegar la implementación.
 
-import { test } from "node:test";
-import assert from "node:assert/strict";
-import { VERSION } from "../src/index.js";
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const store = require("../src/index.js");
 
-test("el módulo público expone una versión string", () => {
-  assert.equal(typeof VERSION, "string");
+test("la fachada expone una versión string", () => {
+  assert.equal(typeof store.VERSION, "string");
+});
+
+test("reexpone el core de documentos (DocStore)", () => {
+  assert.equal(typeof store.doc.DocStore, "function");
+});
+
+test("reexpone el core vectorial (VectorStore)", () => {
+  assert.equal(typeof store.vector.VectorStore, "function");
 });
