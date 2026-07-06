@@ -3,6 +3,14 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.4] — 2026-07-06
+
+### Security
+- **Re-vendorizado `js-doc-store` @ 1adf71a (v1.2.1)**: comparación de hash de password en
+  tiempo constante (`Auth._verifyPassword` ya no usa `===` con early-exit sobre el hash;
+  usa un `_constantTimeEqual` portable). Cambio ADITIVO en el vendor; el resto del core
+  intacto. Hallazgo de una auditoría externa de un consumidor downstream (js-base).
+
 ## [0.1.3] — 2026-07-06
 
 ### Fixed
