@@ -51,7 +51,7 @@ function buildBM25(docCollection, col, textField) {
 }
 
 class SemanticCollection {
-  constructor({ vectorStore, docCollection, col, dim, walPath, path } = {}) {
+  constructor({ vectorStore, docCollection, col, dim, walPath, path, lock } = {}) {
     this.col = col == null ? DEFAULT_COL : col;
     this.walPath = walPath == null ? null : walPath;
     this._tx = null;
@@ -63,7 +63,7 @@ class SemanticCollection {
     }
     if (path != null) {
       // Modo DISCO: docs+vectores en disco, no en RAM (opt-in por opts.path).
-      this._openDisk(path, dim);
+      this._openDisk(path, dim, lock);
       return;
     }
     // Modo CONVENIENCIA: arma sus propios cores en memoria.
@@ -79,7 +79,17 @@ class SemanticCollection {
   // operen sin cambios. Cablea el IVF: search usa this._diskIvf si está activo
   // (tras reindex); un set/remove lo invalida (vuelve a escaneo exacto).
   // Cyclomatic <= 10, nesting <= 3.
-  _openDisk(path, dim) {
+  _openDisk(path, dim, lock) {
+    // Lock de un solo escritor (opt-in por opts.lock): PRIMER paso, antes de abrir
+    // los archivos. Con lock:true adquiere path+".lock" (lanza si lo tiene otro
+    // proceso vivo; roba si es stale, eso lo decide lock.js). this._lockPath queda
+    // seteado para que close() lo libere. Sin lock, dos aperturas conviven.
+    if (lock === true) {
+      acquireLock(path + ".lock");
+      this._lockPath = path + ".lock";
+    } else {
+      this._lockPath = null;
+    }
     const { DiskCollection } = require("./disk-collection.js");
     const { DiskVectorStore } = require("./disk-vectors.js");
     const resolvedDim = dim == null ? DEFAULT_DIM : dim;
