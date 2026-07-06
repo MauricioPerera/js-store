@@ -7,6 +7,7 @@ const { hybridMerge } = require("./hybrid-merge.js");
 const { matchFilter } = require("./vendor/js-doc-store.js");
 const { BM25Index, HybridSearch } = require("./vendor/js-vector-store.js");
 const { appendOp, readOps } = require("./wal.js");
+const { acquireLock, releaseLock } = require("./lock.js");
 
 const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
@@ -180,7 +181,10 @@ class SemanticCollection {
 
   // Durabilidad B2b: apertura con recuperación (snapshot + replay WAL) y checkpoint.
   // Contrato: knowledge/contracts/semantic-collection-durable.md
-  static openDurable({ path, walPath, dim, col } = {}) {
+  static openDurable({ path, walPath, dim, col, lockPath } = {}) {
+    // 0. Lock de un solo escritor (opt-in): PRIMER paso. Lanza si otro proceso VIVO
+    //    lo tiene; roba un lock stale de proceso muerto (vía acquireLock).
+    if (lockPath != null) acquireLock(lockPath);
     // 1. Estado base: si el snapshot existe, deserializa; si no, colección nueva.
     let sc;
     if (path != null && fs.existsSync(path)) {
@@ -196,6 +200,7 @@ class SemanticCollection {
     // 3. Activar durabilidad para las mutaciones POSTERIORES.
     sc.snapshotPath = path == null ? null : path;
     sc.walPath = walPath == null ? null : walPath;
+    sc._lockPath = lockPath == null ? null : lockPath;
     return sc;
   }
 
@@ -227,6 +232,15 @@ class SemanticCollection {
     this.vectorStore = restored.vectorStore;
     this.docCollection = restored.docCollection;
     this._tx = null;
+  }
+
+  // Lock de un solo escritor (Fase D2): libera el lock si la colección lo tomó.
+  // Contrato: knowledge/contracts/semantic-collection-lock.md
+  close() {
+    if (this._lockPath) {
+      releaseLock(this._lockPath);
+      this._lockPath = null;
+    }
   }
 }
 
