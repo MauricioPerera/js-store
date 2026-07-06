@@ -350,6 +350,19 @@ npm test                                                   # suite JS
 El detalle del proceso (PLAN → SPEC → DELEGAR → VERIFICAR → COMMIT → CIERRE) está en
 [`knowledge/metodologia-ejecucion.md`](knowledge/metodologia-ejecucion.md).
 
+## Proyectos relacionados
+
+Parte de una cadena de librerías embebidas, cero dependencias, de
+[Mauricio Perera](https://github.com/MauricioPerera):
+
+- **[js-doc-store](https://github.com/MauricioPerera/js-doc-store)** — el core de documentos que
+  js-store **vendoriza** (queries estilo MongoDB, índices, joins, aggregation, full-text, graph,
+  encriptación, JWT auth).
+- **[js-vector-store](https://github.com/MauricioPerera/js-vector-store)** — el core vectorial que
+  js-store **vendoriza** (cuantización, IVF, BM25, búsqueda híbrida).
+- **[js-base](https://github.com/MauricioPerera/js-base)** — backend embebido estilo PocketBase
+  (REST + auth + reglas + realtime + búsqueda semántica) construido **sobre** js-store.
+
 ## Licencia
 
 MIT — ver [LICENSE](LICENSE).
