@@ -7,6 +7,7 @@ const { matchFilter } = require("./vendor/js-doc-store.js");
 
 const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
+const DEFAULT_DIM = 768;
 
 // over-fetch suficiente para no perder recall tras filtrar.
 function resolveOverFetch(limit, overFetch) {
@@ -27,10 +28,20 @@ function buildAllowedIds(docCollection, candidates, filter) {
 }
 
 class SemanticCollection {
-  constructor({ vectorStore, docCollection, col } = {}) {
-    this.vectorStore = vectorStore;
-    this.docCollection = docCollection;
+  constructor({ vectorStore, docCollection, col, dim } = {}) {
     this.col = col == null ? DEFAULT_COL : col;
+    if (vectorStore != null) {
+      // Modo INYECCIÓN (existente, sin cambios).
+      this.vectorStore = vectorStore;
+      this.docCollection = docCollection;
+      return;
+    }
+    // Modo CONVENIENCIA: arma sus propios cores en memoria.
+    const { VectorStore, MemoryStorageAdapter } = require("./vendor/js-vector-store.js");
+    const { DocStore, MemoryStorageAdapter: DocMemAdapter } = require("./vendor/js-doc-store.js");
+    const resolvedDim = dim == null ? DEFAULT_DIM : dim;
+    this.vectorStore = new VectorStore(new MemoryStorageAdapter(), resolvedDim);
+    this.docCollection = new DocStore(new DocMemAdapter()).collection(this.col);
   }
 
   upsert(id, doc, vector) {
