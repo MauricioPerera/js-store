@@ -5,7 +5,7 @@
 Base de datos **embebida** de **documentos** (JSON) y **vectores** (búsqueda por
 similitud) en **JavaScript puro (CommonJS), sin dependencias de runtime**.
 
-> Estado: **v0.1.5** (estable, CI verde). js-store es una **capa de integración** sobre dos cores
+> Estado: **v0.1.7** (estable, CI verde). js-store es una **capa de integración** sobre dos cores
 > propios vendorizados en [`src/vendor/`](src/vendor/) — [js-doc-store](https://github.com/MauricioPerera/js-doc-store)
 > y [js-vector-store](https://github.com/MauricioPerera/js-vector-store). La API unificada
 > doc+vector (`SemanticCollection`) se construyó tarea por tarea bajo contratos CCDD. Ver
