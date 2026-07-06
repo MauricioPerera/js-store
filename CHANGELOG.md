@@ -3,6 +3,15 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **IVF stale en lector de larga vida**: `SemanticCollection.refresh()` ahora invalida el índice
+  IVF en memoria del lector si el escritor mutó (el `.ivf` fue borrado), evitando pérdida de
+  recall silenciosa (el lector vuelve a escaneo exacto). Test de regresión que reproduce el
+  escenario 1 escritor + N lectores con IVF auto-cargado.
+- Sincronizado `index.js` `VERSION` con `package.json` (`0.1.0`).
+
 ## [0.1.0] — 2026-07-06
 
 Primera release etiquetada. Base de datos **embebida** de documentos + vectores en **JavaScript

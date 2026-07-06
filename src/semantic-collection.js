@@ -340,11 +340,17 @@ class SemanticCollection {
 
   // Refresh de lectores en modo disco: relee la cola de los logs (docs + vectores) para
   // que un lector de larga vida vea lo anexado por el escritor, sin reabrir. En memoria
-  // es no-op. Contrato: knowledge/contracts/semantic-collection-disk-refresh.md
+  // es no-op. Si el escritor mutó (borró el .ivf), invalida el IVF stale del lector →
+  // vuelve a escaneo exacto (evita recall silencioso). Contratos:
+  // semantic-collection-disk-refresh.md + semantic-collection-disk-refresh-ivf.md
   refresh() {
     if (this._diskVecPath == null) return;
     this._diskDoc.refresh();
     this._diskVec.refresh();
+    if (this._diskIvf != null && !fs.existsSync(this._diskVecPath + ".ivf")) {
+      this._diskIvf = null;
+      this._diskNProbe = null;
+    }
   }
 
   // Lock de un solo escritor: libera el lock si la colección lo tomó (no-op sin lock).
