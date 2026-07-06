@@ -13,6 +13,7 @@ class DiskKV {
     if (!fs.existsSync(dataPath)) fs.writeFileSync(dataPath, "");
     this._fd = fs.openSync(dataPath, "r+");
     this._scan();
+    this._scanPos = fs.fstatSync(this._fd).size;
   }
 
   // Reconstruye el indice escaneando el log de principio a fin (sin retener valores).
@@ -76,6 +77,25 @@ class DiskKV {
     return Array.from(this._index.keys());
   }
 
+  // Relee la COLA del log (registros anexados por otro proceso/instancia desde el último
+  // scan) y actualiza el índice. Tolera un último registro incompleto (torn). Habilita
+  // 1 escritor + N lectores. STUB — lo implementa el dev. Contrato: knowledge/contracts/disk-kv-refresh.md
+  refresh() {
+    const size = fs.fstatSync(this._fd).size;
+    let pos = this._scanPos;
+    while (pos < size) {
+      if (pos + 4 > size) break;                       // header incompleto
+      const N = this._readAt(pos, 4).readUInt32BE(0);
+      if (pos + 4 + N > size) break;                   // payload incompleto (torn): no avanzar
+      const payloadOffset = pos + 4;
+      const rec = JSON.parse(this._readAt(payloadOffset, N).toString("utf8"));
+      pos = pos + 4 + N;
+      if (rec.deleted) { this._deleted.add(rec.key); this._index.delete(rec.key); }
+      else { this._index.set(rec.key, { offset: payloadOffset, length: N }); this._deleted.delete(rec.key); }
+      this._scanPos = pos;                             // avanza SOLO tras un registro completo
+    }
+  }
+
   // Compacta el log: reescribe solo los registros vivos (dropea tombstones y versiones
   // superadas) y reemplaza el archivo atómicamente. STUB — lo implementa el dev.
   // Contrato: knowledge/contracts/disk-kv-compact.md
@@ -101,6 +121,7 @@ class DiskKV {
     this._fd = fs.openSync(this._path, "r+");
     this._index = newIndex;
     this._deleted = new Set();
+    this._scanPos = fs.fstatSync(this._fd).size;
   }
 }
 
