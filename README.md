@@ -58,6 +58,62 @@ store.doc.DocStore;       // core de documentos (vendorizado)
 store.vector.VectorStore; // core vectorial (vendorizado)
 ```
 
+## Modo disco (no depende de RAM) + IVF
+
+Por defecto la colección vive **en memoria** (acotada por RAM). Con un `path`, js-store opera
+en **modo disco**: documentos y vectores **viven en disco** y se leen **bajo demanda** — el
+dataset completo **nunca** se carga a RAM, así que puede ser **más grande que la memoria**.
+
+```js
+const { SemanticCollection } = require("js-store");
+
+// Modo DISCO: los datos NO viven en RAM (se leen de disco bajo demanda).
+const sc = new SemanticCollection({ path: "./mi-db", dim: 768 });
+
+sc.upsert("d1", { tipo: "post", text: "..." }, embedding1);
+sc.upsert("d2", { tipo: "note", text: "..." }, embedding2);
+
+// Misma API que el modo memoria — pero sin cargar todo a RAM:
+sc.search(queryVector, { filter: { tipo: "post" }, limit: 10 });
+sc.searchHybrid(queryVector, "texto", { limit: 10 });
+sc.get("d1"); sc.count({ tipo: "post" }); sc.delete("d2"); sc.keys();
+
+// ...otro proceso / reinicio: los datos siguen en disco
+const sc2 = new SemanticCollection({ path: "./mi-db", dim: 768 });
+sc2.get("d1"); // ✅ lo ve — estaba en disco, no en RAM
+```
+
+Cómo lo hace, por capas (todo en JS puro, `node:fs`): `DiskKV` (valores en un log append-only,
+lectura por posición) → `DiskCollection` (docs por `_id`, queries por escaneo con `matchFilter`)
+→ `DiskVectorStore` (vectores en disco, búsqueda streaming).
+
+### Búsqueda por IVF (`reindex`)
+
+Sin índice, la búsqueda vectorial en disco **escanea** todos los vectores (O(N) lecturas). Para
+acelerarla, construí un índice **IVF** con `reindex(nClusters, nProbe)`: agrupa los vectores en
+clusters (k-means) y la búsqueda lee de disco **solo los `nProbe` clusters más cercanos** a la
+query.
+
+```js
+sc.reindex(256, 8);   // 256 clusters; la búsqueda prueba los 8 más cercanos
+sc.search(queryVector, { limit: 10 });   // lee solo esos clusters (rápido), sin cargar todo a RAM
+
+// Toda mutación invalida el índice → la búsqueda vuelve al escaneo EXACTO hasta el próximo reindex
+sc.upsert("d3", { tipo: "post" }, embedding3);
+sc.reindex(256, 8);   // reconstruí cuando quieras (modelo build-index / REINDEX)
+```
+
+- Con `nProbe >= nClusters` (probar todos) los resultados son **exactos** (equivalen al escaneo).
+- El índice IVF (centroides + posting lists) vive en RAM y es **pequeño** (no los vectores);
+  se reconstruye con `reindex` (p.ej. al abrir, o tras un lote de `upsert`).
+- `reindex` solo aplica al **modo disco** (lanza en modo memoria).
+
+> **Alcance honesto:** el modo disco rompe el **techo de RAM** para el dataset (docs+vectores en
+> disco). Siguen siendo de un solo escritor (ver [Durabilidad](#durabilidad)) y sin lectores
+> concurrentes coordinados entre procesos; el índice IVF se **reconstruye** por sesión (no se
+> persiste todavía). El entrenamiento de `reindex` usa una muestra acotada; la búsqueda es la
+> parte no-RAM (solo lee los clusters probados).
+
 ## Durabilidad
 
 Por defecto una `SemanticCollection` vive **en memoria**. La durabilidad es **opt-in** y se
