@@ -102,11 +102,26 @@ sc.commit();     // → ambas ops al WAL de una vez (atómico)
 // sc.rollback() habría descartado ambas, sin tocar el WAL
 ```
 
-> **Alcance honesto:** la colección es **in-memory** (acotada por RAM) y de **un solo
-> proceso** (sin locking multi-proceso); las transacciones son de estado completo (el
-> `begin` copia el estado, coste O(N), no MVCC). Para durabilidad relacional a gran escala,
-> usa SQLite u otra base como fuente de verdad; js-store brilla como índice semántico
-> embebido y portable.
+**D · Un solo escritor (lock)** — con un `lockPath`, `openDurable` adquiere un **lockfile**
+(con el PID) como primer paso: si otro proceso **vivo** ya lo tiene, falla rápido (evita que
+dos escritores corrompan el mismo WAL); si el lock es **huérfano** (proceso muerto), lo roba.
+`close()` lo libera.
+
+```js
+const sc = SemanticCollection.openDurable({
+  path: "col.json", walPath: "col.wal", lockPath: "col.lock", dim: 768,
+});
+// ...otro proceso que intente openDurable con el mismo lockPath (dueño vivo) → lanza
+sc.upsert("d1", { text: "..." }, emb);
+sc.close();   // libera el lock
+```
+
+> **Alcance honesto:** la colección es **in-memory** (acotada por RAM). El lock garantiza
+> **un solo escritor a la vez** (el segundo abridor falla rápido) pero **no** es concurrencia
+> multi-proceso real: no hay lectores concurrentes coordinados ni escritura compartida. Las
+> transacciones son de estado completo (el `begin` copia el estado, coste O(N), no MVCC).
+> Para datos relacionales, concurrencia real o datasets que no caben en RAM, usa SQLite u
+> otra base como fuente de verdad; js-store brilla como índice semántico embebido y portable.
 
 ## Metodología: KDD (Knowledge-Driven Development)
 
