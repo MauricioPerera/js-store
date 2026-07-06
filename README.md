@@ -109,10 +109,50 @@ sc.reindex(256, 8);   // reconstruí cuando quieras (modelo build-index / REINDE
 - `reindex` solo aplica al **modo disco** (lanza en modo memoria).
 
 > **Alcance honesto:** el modo disco rompe el **techo de RAM** para el dataset (docs+vectores en
-> disco). Siguen siendo de un solo escritor (ver [Durabilidad](#durabilidad)) y sin lectores
-> concurrentes coordinados entre procesos; el índice IVF se **reconstruye** por sesión (no se
-> persiste todavía). El entrenamiento de `reindex` usa una muestra acotada; la búsqueda es la
-> parte no-RAM (solo lee los clusters probados).
+> disco). La concurrencia soportada es **1 escritor + N lectores** (ver abajo); **no** hay
+> multi-escritor. El índice IVF se **reconstruye** por sesión (no se persiste todavía). El
+> entrenamiento de `reindex` usa una muestra acotada; la búsqueda es la parte no-RAM (solo lee
+> los clusters probados).
+
+### Concurrencia (1 escritor + N lectores)
+
+El log de cada store en disco es **append-only** (los registros ya escritos son inmutables), lo
+que habilita el mismo modelo que SQLite en modo WAL: **un escritor y varios lectores** sobre el
+mismo archivo, sin corrupción.
+
+**Escritor único — `{ path, lock: true }`.** Al abrir en modo disco con `lock: true`, la
+colección adquiere un **lockfile** (`path + ".lock"`, con el PID) como primer paso: si otro
+proceso **vivo** ya lo tiene, falla rápido; si el lock es **huérfano** (proceso muerto), lo
+roba. `close()` lo libera.
+
+```js
+const w = new SemanticCollection({ path: "./db", dim: 768, lock: true });
+w.upsert("d1", { tipo: "post" }, emb);
+// ...otra instancia con { path: "./db", lock: true } y el primero vivo → lanza
+w.close();   // libera el lock
+```
+
+**Lectores — sin `lock`.** Varias colecciones **sin** `lock` conviven sobre la misma `path` y
+**no** bloquean. Una instancia lectora recién abierta escanea el log y ve **todo** lo ya
+escrito (incluidas escrituras de otro proceso).
+
+```js
+const r = new SemanticCollection({ path: "./db", dim: 768 });   // ve lo que el escritor ya commiteó
+r.search(queryVector, { limit: 10 });
+```
+
+> **Cómo un lector de larga vida ve escrituras NUEVAS:** la primitiva
+> [`DiskKV.refresh()`](src/disk-kv.js) relee **solo la cola** del log (incremental, tolerando un
+> último registro a medio escribir) y actualiza el índice sin releer todo el archivo. Hoy
+> `refresh()` vive en la capa `DiskKV`; **`SemanticCollection` aún no expone un `refresh()`
+> propio**, así que para refrescar un lector de larga vida al nivel de `SemanticCollection` hay
+> que **reabrir** (una instancia nueva escanea el log y ve lo último). Wire de `refresh()` a
+> `SemanticCollection` = trabajo pendiente si lo necesitás.
+
+> **Alcance honesto:** 1 escritor + N lectores, **coordinado por lockfile** (no por el SO). No
+> hay multi-escritor, ni aislamiento transaccional entre procesos, ni notificación push a los
+> lectores (hacen *pull* con `refresh`/reapertura). Suficiente para *un* proceso que escribe y
+> otros que consultan; no para escritura concurrente real.
 
 ## Durabilidad
 
