@@ -8,6 +8,7 @@ const { matchFilter } = require("./vendor/js-doc-store.js");
 const { BM25Index, HybridSearch } = require("./vendor/js-vector-store.js");
 const { appendOp, readOps } = require("./wal.js");
 const { acquireLock, releaseLock } = require("./lock.js");
+const { validateInput } = require("./validate.js");
 
 const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
@@ -75,6 +76,10 @@ class SemanticCollection {
   }
 
   upsert(id, doc, vector) {
+    const errors = validateInput(id, doc, vector, this.vectorStore.dim);
+    if (errors.length > 0) {
+      throw new Error("upsert: entrada invalida: " + errors.join("; "));
+    }
     this.vectorStore.set(this.col, id, vector);
     this.docCollection.remove({ _id: id });
     this.docCollection.insert({ ...doc, _id: id });
