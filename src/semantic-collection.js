@@ -353,6 +353,15 @@ class SemanticCollection {
     }
   }
 
+  // Compacta los logs en disco (docs + vectores): dropea tombstones y versiones superadas,
+  // preserva los datos vivos y achica el archivo. No-op en memoria. Operación de escritor.
+  // Contrato: knowledge/contracts/semantic-collection-disk-compact.md
+  compact() {
+    if (this._diskVecPath == null) return;
+    this._diskDoc.compact();
+    this._diskVec.compact();
+  }
+
   // Lock de un solo escritor: libera el lock si la colección lo tomó (no-op sin lock).
   close() {
     if (this._lockPath) {

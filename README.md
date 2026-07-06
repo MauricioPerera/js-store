@@ -87,6 +87,14 @@ Cómo lo hace, por capas (todo en JS puro, `node:fs`): `DiskKV` (valores en un l
 lectura por posición) → `DiskCollection` (docs por `_id`, queries por escaneo con `matchFilter`)
 → `DiskVectorStore` (vectores en disco, búsqueda streaming).
 
+El log es append-only, así que crece con cada `upsert`/`delete`. `compact()` lo reescribe
+dejando solo los registros vivos (dropea tombstones y versiones superadas) y achica el archivo;
+es una operación de **escritor** (usala como el escritor único). No-op en modo memoria.
+
+```js
+sc.compact();   // reclama espacio del log de docs y vectores; datos vivos intactos
+```
+
 ### Búsqueda por IVF (`reindex`)
 
 Sin índice, la búsqueda vectorial en disco **escanea** todos los vectores (O(N) lecturas). Para

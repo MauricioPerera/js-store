@@ -46,6 +46,12 @@ class DiskVectorStore {
     this._kv.refresh();
   }
 
+  // Compacta el log subyacente (dropea tombstones/versiones viejas). STUB — lo implementa
+  // el dev. Contrato: knowledge/contracts/semantic-collection-disk-compact.md
+  compact() {
+    this._kv.compact();
+  }
+
   search(queryVector, k) {
     const out = [];
     for (const id of this._kv.keys()) {

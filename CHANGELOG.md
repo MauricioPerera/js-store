@@ -5,6 +5,12 @@ Todas las versiones notables de **js-store**. Formato basado en
 
 ## [Unreleased]
 
+### Added
+- **`SemanticCollection.compact()`** (modo disco): compacta los logs de docs y vectores (dropea
+  tombstones y versiones superadas, achica el archivo) delegando en `DiskKV.compact()`. No-op en
+  memoria. Expone en la fachada una operación que antes solo era accesible bajando a `DiskKV`
+  (cierra #2).
+
 ### Fixed
 - **IVF stale en lector de larga vida**: `SemanticCollection.refresh()` ahora invalida el índice
   IVF en memoria del lector si el escritor mutó (el `.ivf` fue borrado), evitando pérdida de

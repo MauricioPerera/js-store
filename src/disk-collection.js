@@ -61,6 +61,12 @@ class DiskCollection {
     this._kv.refresh();
   }
 
+  // Compacta el log subyacente (dropea tombstones/versiones viejas). STUB — lo implementa
+  // el dev. Contrato: knowledge/contracts/semantic-collection-disk-compact.md
+  compact() {
+    this._kv.compact();
+  }
+
   // Escanea los ids en disco leyendo de a uno (sin cargar todo a RAM) y aplica `cb`
   // por cada documento que matchea el filtro. `cb` recibe (id, doc) y puede devolver
   // false para detener el escaneo. Normaliza filter vacio/undefined a "matchea todo".
