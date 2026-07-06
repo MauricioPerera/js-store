@@ -3,6 +3,18 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.3] — 2026-07-06
+
+### Fixed
+- **`DiskKV` reopen tolerante a registro torn al final del log**: un crash mid-append podía
+  dejar un registro incompleto (header sin payload, o payload parcial) al final del log;
+  al reabrir, `_scan` hacía `JSON.parse` a ciegas y lanzaba `SyntaxError`, dejando la
+  colección irrecuperable. Ahora `_scan` chequea límites antes de leer (igual que
+  `refresh()`), corta el barrido en el primer registro incompleto, reconstruye el índice
+  con los registros completos y trunca el archivo al último offset bueno para que el log
+  quede sano. Sin torn => sin truncar, comportamiento idéntico. `refresh()` (camino del
+  lector) sigue sin truncar.
+
 ## [0.1.2] — 2026-07-06
 
 ### Added
