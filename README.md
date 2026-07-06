@@ -1,5 +1,7 @@
 # js-store
 
+[![CI](https://github.com/MauricioPerera/js-store/actions/workflows/validate.yml/badge.svg)](https://github.com/MauricioPerera/js-store/actions/workflows/validate.yml)
+
 Base de datos **embebida** de **documentos** (JSON) y **vectores** (búsqueda por
 similitud) en **JavaScript puro (CommonJS), sin dependencias de runtime**.
 
