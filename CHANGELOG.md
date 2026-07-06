@@ -5,6 +5,13 @@ Todas las versiones notables de **js-store**. Formato basado en
 
 ## [Unreleased]
 
+### Added
+- **`SemanticCollection.find(filter)`**: lectura por filtro estilo Mongo (docs que matchean, sin búsqueda
+  vectorial) delegando en `this.docCollection.find(filter)`. Misma shape de documento que `get(id)`. En modo
+  disco cablea `find: (f) => dc.find(f)` en el adaptador de `_openDisk`, que aprovecha el índice secundario
+  (`ensureIndex`) para igualdad simple y cae a escaneo en el resto. Devuelve SIEMPRE un array de docs en
+  todos los modos (en memoria materializa el `Cursor` del core con `.toArray()`).
+
 ### Changed
 - **`DiskCollection.remove(filter)`** (modo disco): usa el índice secundario para igualdad simple
   sobre campo indexado (resuelve los ids a borrar por índice sin escanear); cae a escaneo en el

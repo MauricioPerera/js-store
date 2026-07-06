@@ -105,6 +105,7 @@ class SemanticCollection {
       findById: (id) => dc.findById(id),
       count: (f) => dc.count(f),
       remove: (f) => dc.remove(f),
+      find: (f) => dc.find(f),
       export: () => dc.find({}),
     };
     this.vectorStore = {
@@ -232,6 +233,20 @@ class SemanticCollection {
 
   count(filter) {
     return this.docCollection.count(filter);
+  }
+
+  // Lectura por filtro estilo Mongo (sin búsqueda vectorial): delega en el core
+  // documental. Misma shape de documento que get(id) (el doc tal cual lo devuelve
+  // el core). En modo disco, DiskCollection.find aprovecha el índice secundario
+  // (ensureIndex) para igualdad simple sobre un campo indexado y cae a escaneo en
+  // el resto; en memoria el core devuelve un Cursor lazy, en disco un array.
+  // Normaliza el contenedor: SIEMPRE devuelve un array de docs (materializa el
+  // Cursor del core si hiciera falta). Contrato: knowledge/contracts/semantic-collection-find.md
+  find(filter) {
+    const result = this.docCollection.find(filter);
+    if (Array.isArray(result)) return result;
+    if (result && typeof result.toArray === "function") return result.toArray();
+    return result;
   }
 
   // Lista de ids de todos los documentos. Contrato: semantic-collection-keys.md

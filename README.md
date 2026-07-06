@@ -77,6 +77,7 @@ sc.upsert("d2", { tipo: "note", text: "..." }, embedding2);
 sc.search(queryVector, { filter: { tipo: "post" }, limit: 10 });
 sc.searchHybrid(queryVector, "texto", { limit: 10 });
 sc.get("d1"); sc.count({ tipo: "post" }); sc.delete("d2"); sc.keys();
+sc.find({ tipo: "post" });   // docs que matchean el filtro estilo Mongo (sin búsqueda vectorial)
 
 // ...otro proceso / reinicio: los datos siguen en disco
 const sc2 = new SemanticCollection({ path: "./mi-db", dim: 768 });
@@ -107,6 +108,7 @@ los docs nuevos quedan cubiertos. No-op en modo memoria.
 ```js
 sc.ensureIndex("tipo");                 // indexa el campo "tipo" sobre los docs actuales
 sc.count({ tipo: "post" });             // resuelve por índice (igualdad simple)
+sc.find({ tipo: "post" });              // lo mismo: igualdad simple resuelta por índice (cae a escaneo en filtros complejos)
 ```
 
 > El índice vive en la RAM del proceso que lo creó. En un **lector** de larga vida, los docs que el
