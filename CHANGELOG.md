@@ -10,6 +10,9 @@ Todas las versiones notables de **js-store**. Formato basado en
   tombstones y versiones superadas, achica el archivo) delegando en `DiskKV.compact()`. No-op en
   memoria. Expone en la fachada una operación que antes solo era accesible bajando a `DiskKV`
   (cierra #2).
+- **`SemanticCollection.ensureIndex(field)`** (modo disco): expone el índice secundario de
+  `DiskCollection` (mapa en RAM `valor -> ids` para igualdad simple sobre un campo) delegando en
+  `DiskCollection.ensureIndex(field)`; mantenido por `upsert`/`delete`. No-op en memoria.
 
 ### Changed
 - `validate_specs.py`: cuando `specs/` no tiene contratos, imprime **`AVISO`** (0 validados,

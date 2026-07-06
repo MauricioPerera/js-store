@@ -95,6 +95,24 @@ es una operación de **escritor** (usala como el escritor único). No-op en modo
 sc.compact();   // reclama espacio del log de docs y vectores; datos vivos intactos
 ```
 
+### Índice secundario por campo (`ensureIndex`)
+
+Sin índice, `count`/`find` del core documental **escanean** todos los docs (O(N) lecturas de disco).
+Para acelerar la igualdad simple sobre un campo, construí un índice secundario con
+`sc.ensureIndex(field)`: en modo disco delega en `DiskCollection.ensureIndex(field)`, que mantiene en
+RAM un mapa `valor -> ids` y que `find` usa para resolver `{ field: valor }` sin escanear (cae a
+escaneo para filtros complejos). El índice lo mantienen los `upsert`/`delete` posteriores, así que
+los docs nuevos quedan cubiertos. No-op en modo memoria.
+
+```js
+sc.ensureIndex("tipo");                 // indexa el campo "tipo" sobre los docs actuales
+sc.count({ tipo: "post" });             // resuelve por índice (igualdad simple)
+```
+
+> El índice vive en la RAM del proceso que lo creó. En un **lector** de larga vida, los docs que el
+> escritor añadió después no entran al índice del lector con `refresh()` (este solo relea la cola del
+> log, no reconstruye el índice): volvé a llamar `sc.ensureIndex(field)` tras `refresh()` si lo usás.
+
 ### Búsqueda por IVF (`reindex`)
 
 Sin índice, la búsqueda vectorial en disco **escanea** todos los vectores (O(N) lecturas). Para
@@ -175,8 +193,8 @@ r.get("d2");     // ahora sí; r.search(...) también lo encuentra
 > `refresh()` actualiza la **vista base** (`get`/`findById`/`count`/`search`) e **invalida un
 > índice IVF stale**: si el escritor mutó (lo que borra el `.ivf`), el lector vuelve a **escaneo
 > exacto** y ve las escrituras nuevas (no reconstruye el IVF en el lector — eso es tarea de
-> `reindex`). **No** reconstruye los índices secundarios creados con `ensureIndex` (esos quedan
-> stale para registros nuevos — volvé a llamar `ensureIndex` si los usás).
+> `reindex`). **No** reconstruye los índices secundarios creados con `sc.ensureIndex` (esos quedan
+> stale para registros nuevos — volvé a llamar `sc.ensureIndex` si los usás).
 
 > **Alcance honesto:** 1 escritor + N lectores, **coordinado por lockfile** (no por el SO). No
 > hay multi-escritor, ni aislamiento transaccional entre procesos, ni notificación push a los

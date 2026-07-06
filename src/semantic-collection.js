@@ -362,6 +362,17 @@ class SemanticCollection {
     this._diskVec.compact();
   }
 
+  // Índice secundario sobre un campo del doc (modo disco): delega en
+  // DiskCollection.ensureIndex(field), que construye en RAM valor->ids escaneando
+  // disco y es mantenido por insert/remove (los upserts posteriores quedan cubiertos).
+  // find/count del DiskCollection lo usan para igualdad simple sobre el campo indexado.
+  // No-op en memoria/inyección (no hay _diskDoc). Contrato:
+  // knowledge/contracts/semantic-collection-disk-index.md
+  ensureIndex(field) {
+    if (this._diskVecPath == null) return;
+    this._diskDoc.ensureIndex(field);
+  }
+
   // Lock de un solo escritor: libera el lock si la colección lo tomó (no-op sin lock).
   close() {
     if (this._lockPath) {
