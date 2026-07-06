@@ -34,7 +34,9 @@ appendOp(walPath, op) -> void
 
 readOps(walPath) -> Array<op>
 //   Lee `walPath` y devuelve las operaciones en orden. Si el archivo no existe => []. Tolera
-//   una ÚLTIMA línea incompleta (torn write por crash a mitad de append): se ignora.
+//   SOLO una ÚLTIMA línea incompleta (torn write por crash a mitad de append): se ignora.
+//   Una línea que no parsea con ops válidas DESPUÉS es corrupción del medio (no torn tail):
+//   lanza Error de dominio `readOps: WAL corrupto en la línea N (no es la última)`.
 ```
 
 ## Invariants
@@ -44,7 +46,9 @@ readOps(walPath) -> Array<op>
 - `readOps` devuelve las ops en el mismo orden en que se añadieron.
 - `readOps` de un archivo inexistente o vacío => `[]`.
 - **Tolerancia a crash**: una última línea que no parsea como JSON (torn) se ignora; las
-  líneas completas previas se devuelven intactas.
+  líneas completas previas se devuelven intactas. Como el WAL es append-only + fsync por op,
+  una línea corrupta SOLO puede ser la última con contenido; una que no parsea con contenido
+  (líneas no vacías) después es corrupción del medio -> `readOps` lanza (no la dropea).
 - Round-trip exacto de valores complejos (doc anidado, vector de números).
 - Determinista; solo `node:fs`; IO síncrono; sin red/subprocess.
 

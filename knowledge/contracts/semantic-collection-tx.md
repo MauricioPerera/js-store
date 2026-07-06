@@ -49,6 +49,12 @@ sc.rollback() // restaura los stores desde this._tx.snapshot; descarta el buffer
 - Tras `rollback`, el WAL NO contiene las ops de la tx descartada; `openDurable` reconstruye
   sin ellas.
 - Errores: `begin` estando en tx lanza (no anidamiento); `commit`/`rollback` sin tx lanzan.
+- **Modo disco**: `begin` lanza si `this._diskVecPath != null` (modo disco, constructor con
+  `{ path }`). Las tx son del modo memoria: en disco un upsert dentro de la tx hace fsync
+  directo al log y `rollback` restaura cores en memoria sin tocar `_diskVecPath` -> estado
+  divergente + la op persiste al reabrir. `openDurable` NO activa modo disco (`_diskVecPath`
+  queda null: memoria + WAL), así que sus tx siguen permitidas. `commit`/`rollback` quedan
+  protegidos por transitividad (no se puede activar la tx en disco).
 - Reusa `serialize`/`deserialize`/`appendOp`; no reimplementa nada. Solo stdlib.
 
 ## Examples

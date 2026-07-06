@@ -3,6 +3,25 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
+## [0.1.6] — 2026-07-06
+
+### Fixed
+- **`SemanticCollection.begin()` lanza en modo disco**: las transacciones son del modo
+  memoria (snapshot en RAM + journaling diferido). En modo disco (constructor con `{ path }`),
+  un `upsert` dentro de la tx hace `fsync` directo al log y `rollback` restaura cores en
+  memoria sin tocar `_diskVecPath`, dejando la instancia híbrida (estado divergente) y la op
+  persistida al reabrir desde disco. Ahora `begin()` lanza con un mensaje de dominio claro
+  antes de poder activar la tx; `commit`/`rollback` quedan protegidos por transitividad. El
+  modo `openDurable` (memoria + WAL, `_diskVecPath` null) NO se ve afectado: sus tx siguen
+  permitidas. Hallazgo H1 de una auditoría externa.
+- **`readOps` del WAL solo tolera torn tail; lanza en corrupción del medio**: el catch
+  silencioso dropeaba cualquier línea que no parseara y seguía el replay, así una op
+  faltante en el medio del journal pasaba sin señal. Como el WAL es append-only + `fsync`
+  por op, una línea corrupta solo puede ser la última con contenido (torn tail de un crash
+  mid-append), que se sigue tolerando; una línea que no parsea con ops válidas después es
+  corrupción del medio y ahora lanza `readOps: WAL corrupto en la línea N (no es la última)`.
+  `appendOp` no se toca. Hallazgo H7 de una auditoría externa.
+
 ## [0.1.5] — 2026-07-06
 
 ### Fixed
