@@ -74,6 +74,14 @@ class SemanticCollection {
     }));
   }
 
+  // Borrado: quita el registro de ambos cores. Devuelve true si el doc existía.
+  // Contrato: knowledge/contracts/semantic-collection-delete.md
+  delete(id) {
+    const removed = this.docCollection.remove({ _id: id });
+    this.vectorStore.remove(this.col, id);
+    return removed > 0;
+  }
+
   // Persistencia: Contrato knowledge/contracts/semantic-collection-persist.md
   // Volcado a objeto plano JSON (sin binario) y reconstrucción vía upsert.
   serialize() {
