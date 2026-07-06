@@ -214,6 +214,17 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(rc, 1, msg=out)
             self.assertIn('ABORTAR', out)
 
+    def test_cli_zero_specs_avisa_no_da_ok_falso(self):
+        # specs/ sin contratos: exit 0 (opcional) pero salida distinguible del
+        # OK real, para no dar una falsa senal verde en CI (issue #3).
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, 'specs'))
+            rc, out = self._run_cli(os.path.join(d, 'specs'))
+            self.assertEqual(rc, 0, msg=out)
+            self.assertIn('AVISO', out)
+            self.assertNotIn('OK: todos los contratos', out)
+            self.assertIn('0 archivo(s)', out)
+
 
 if __name__ == '__main__':
     unittest.main()

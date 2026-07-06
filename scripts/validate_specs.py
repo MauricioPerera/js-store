@@ -249,8 +249,13 @@ def main(argv):
         for f in findings:
             print("{} [{}] {}: {}".format(
                 f['level'], f['rule'], f['file'], f['msg']))
-    else:
+    elif files:
         print("OK: todos los contratos de specs son validos")
+    else:
+        # Sin contratos: no es un fallo (specs/ es opcional en la plantilla),
+        # pero se distingue del "OK" real para no dar una falsa senal verde.
+        print("AVISO: specs/ no contiene contratos CONTRACT-*.md "
+              "(0 validados; specs/ es opcional en esta plantilla)")
 
     print("\nResumen: {} error(es) en {} archivo(s)"
           .format(len(errors), len(files)))

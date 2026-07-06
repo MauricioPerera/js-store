@@ -11,6 +11,11 @@ Todas las versiones notables de **js-store**. Formato basado en
   memoria. Expone en la fachada una operación que antes solo era accesible bajando a `DiskKV`
   (cierra #2).
 
+### Changed
+- `validate_specs.py`: cuando `specs/` no tiene contratos, imprime **`AVISO`** (0 validados,
+  `specs/` es opcional) en vez de un `OK` idéntico al de una validación real — evita una falsa
+  señal verde en CI. Exit 0 sin cambios. Test nuevo que lo cubre. Cierra #3.
+
 ### Docs
 - Documentado el caveat de RAM del modo disco: `serialize()`/`saveToFile()` y `searchHybrid()`
   materializan **todos** los documentos en RAM aunque el dataset viva en disco (README + nodo OKF
