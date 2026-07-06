@@ -1,6 +1,6 @@
 {
   "name": "js-store",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Base de datos embebida de documentos y vectores, sin dependencias. Capa de integración sobre js-doc-store y js-vector-store.",
   "main": "src/index.js",
   "license": "MIT",

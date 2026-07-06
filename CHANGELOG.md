@@ -3,7 +3,7 @@
 Todas las versiones notables de **js-store**. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/); versionado [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.1.2] — 2026-07-06
 
 ### Added
 - **`SemanticCollection.refresh({ rebuildIndexes: true })`** (modo disco): opción opt-in que, tras
