@@ -4,6 +4,7 @@
 
 const { hybridMerge } = require("./hybrid-merge.js");
 const { matchFilter } = require("./vendor/js-doc-store.js");
+const { BM25Index, HybridSearch } = require("./vendor/js-vector-store.js");
 
 const DEFAULT_COL = "default";
 const DEFAULT_LIMIT = 5;
@@ -32,6 +33,17 @@ function buildAllowedIds(docCollection, candidates, filter) {
     if (doc != null && matchFilter(doc, filter)) allowed.add(hit.id);
   }
   return allowed;
+}
+
+// Construye un BM25Index al vuelo desde los docs de la colección (rebuild-at-query).
+// No se mantiene en el estado: se reconstruye por cada llamada a searchHybrid.
+function buildBM25(docCollection, col, textField) {
+  const bm25 = new BM25Index();
+  for (const doc of docCollection.export()) {
+    const text = String(doc[textField] != null ? doc[textField] : "");
+    bm25.addDocument(col, doc._id, text);
+  }
+  return bm25;
 }
 
 class SemanticCollection {
@@ -64,6 +76,29 @@ class SemanticCollection {
     const overFetch = resolveOverFetch(limit, options.overFetch);
 
     const candidates = this.vectorStore.search(this.col, queryVector, overFetch);
+    const allowedIds = buildAllowedIds(this.docCollection, candidates, filter);
+    const merged = hybridMerge(candidates, allowedIds, limit);
+
+    return merged.map((h) => ({
+      id: h.id,
+      score: h.score,
+      doc: this.docCollection.findById(h.id),
+    }));
+  }
+
+  // Búsqueda híbrida texto+vector: fusiona similitud vectorial + BM25 (HybridSearch)
+  // y aplica el filtro documental. Contrato: semantic-collection-hybrid.md
+  searchHybrid(queryVector, queryText, options = {}) {
+    const filter = options.filter == null ? null : options.filter;
+    const limit = options.limit == null ? DEFAULT_LIMIT : options.limit;
+    const textField = options.textField == null ? "text" : options.textField;
+    const mode = options.mode == null ? "rrf" : options.mode;
+    const overFetch = resolveOverFetch(limit, options.overFetch);
+
+    const bm25 = buildBM25(this.docCollection, this.col, textField);
+    const candidates = new HybridSearch(this.vectorStore, bm25, mode).search(
+      this.col, queryVector, queryText, overFetch, options
+    );
     const allowedIds = buildAllowedIds(this.docCollection, candidates, filter);
     const merged = hybridMerge(candidates, allowedIds, limit);
 
