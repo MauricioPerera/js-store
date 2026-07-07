@@ -11,6 +11,10 @@ similitud) en **JavaScript puro (CommonJS), sin dependencias de runtime**.
 > doc+vector (`SemanticCollection`) se construyó tarea por tarea bajo contratos CCDD. Ver
 > [`knowledge/architecture/overview.md`](knowledge/architecture/overview.md).
 
+> 🧩 **Ecosistema completo** (js-doc-store → js-store → js-base + js-vector-store):
+> [`ECOSYSTEM.md`](https://github.com/MauricioPerera/js-base/blob/master/docs/ECOSYSTEM.md) — qué es
+> cada capa y cuál usar (alojado en el repo de js-base).
+>
 > 📄 **Reporte de análisis** de la jornada (cubre los tres repos de la cadena
 > js-doc-store → js-store → js-base):
 > [`ANALISIS-2026-07-06.md`](https://github.com/MauricioPerera/js-base/blob/master/docs/reports/ANALISIS-2026-07-06.md)
